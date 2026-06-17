@@ -12,3 +12,4 @@ grass_scheduler = { git = "https://github.com/SueHeir/grass.git", branch = "main
 mud_kernel = { path = "../mud_kernel" }
 mud_constitutive = { path = "../mud_constitutive" }
 mud_atom = { path = "../mud_atom" }
+serde = { version = "1", features = ["derive"] }

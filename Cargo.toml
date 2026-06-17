@@ -13,6 +13,10 @@ mud_core = { path = "crates/mud_core" }
 name = "rest_state"
 path = "examples/rest_state/main.rs"
 
+[[example]]
+name = "hydrostatic_column"
+path = "examples/hydrostatic_column/main.rs"
+
 [workspace]
 resolver = "2"
 members = ["crates/*"]

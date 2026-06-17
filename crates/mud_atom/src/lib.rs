@@ -77,6 +77,10 @@ pub struct MudAtom {
     /// forward-communicated, so it is carried here as a `#[forward]` column.
     #[forward]
     pub particle_mass: Vec<f64>,
+    /// Boundary flag: 1.0 = frozen boundary particle (fixed in place, but still
+    /// participates in the SPH sums to support the fluid), 0.0 = free. Migrates
+    /// with the atom; not forwarded (only the freeze system reads it, on owners).
+    pub is_boundary: Vec<f64>,
 }
 
 impl Default for MudAtom {
@@ -96,6 +100,7 @@ impl MudAtom {
             velgrad: Vec::new(),
             drho_dt: Vec::new(),
             particle_mass: Vec::new(),
+            is_boundary: Vec::new(),
         }
     }
 }
@@ -163,6 +168,10 @@ pub struct MudInsertConfig {
     /// Smoothing length as a multiple of spacing, `h = h_factor · Δ`; default 1.3.
     #[serde(default)]
     pub h_factor: Option<f64>,
+    /// If true, these are frozen boundary particles (fixed in place, support the
+    /// fluid). Default false.
+    #[serde(default)]
+    pub frozen: Option<bool>,
 }
 
 /// The `[mud]` config section.

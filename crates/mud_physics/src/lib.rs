@@ -30,9 +30,10 @@
 use grass_app::prelude::*;
 use grass_scheduler::prelude::*;
 
+use serde::Deserialize;
 use soil_core::{
-    forward_comm_borders, Atom, AtomDataRegistry, Neighbor, ParticleSimScheduleSet, RunConfig,
-    ScheduleSetupSet,
+    forward_comm_borders, Atom, AtomDataRegistry, Config, Neighbor, ParticleSimScheduleSet,
+    RunConfig, ScheduleSetupSet,
 };
 
 use mud_atom::{MudAtom, MudAtomPlugin, MudMaterialTable};
@@ -213,6 +214,74 @@ pub fn mud_momentum(
 
 // ── Plugin ───────────────────────────────────────────────────────────────────
 
+// ── Gravity (body force) ─────────────────────────────────────────────────────
+
+#[derive(Deserialize, Clone, Default)]
+#[serde(deny_unknown_fields)]
+struct GravityConfig {
+    #[serde(default)]
+    gx: f64,
+    #[serde(default)]
+    gy: f64,
+    #[serde(default)]
+    gz: f64,
+}
+
+/// The gravity acceleration vector resource.
+pub struct MudGravity {
+    pub g: [f64; 3],
+}
+
+/// Adds the gravity body force `m·g` to each particle, at the Force phase.
+pub fn mud_gravity(
+    mut atoms: ResMut<Atom>,
+    gravity: Res<MudGravity>,
+    registry: Res<AtomDataRegistry>,
+) {
+    let sph = registry.expect::<MudAtom>("mud_gravity");
+    let g = gravity.g;
+    for i in 0..atoms.nlocal as usize {
+        let m = sph.particle_mass[i];
+        atoms.force[i][0] += m * g[0];
+        atoms.force[i][1] += m * g[1];
+        atoms.force[i][2] += m * g[2];
+    }
+}
+
+/// Registers the gravity body force from `[gravity]` (gx, gy, gz).
+pub struct MudGravityPlugin;
+
+impl Plugin for MudGravityPlugin {
+    fn default_config(&self) -> Option<&str> {
+        Some("[gravity]\ngx = 0.0\ngy = 0.0\ngz = -9.81")
+    }
+
+    fn build(&self, app: &mut App) {
+        let cfg = Config::load::<GravityConfig>(app, "gravity");
+        app.add_resource(MudGravity {
+            g: [cfg.gx, cfg.gy, cfg.gz],
+        });
+        app.add_update_system(mud_gravity.label("mud_gravity"), ParticleSimScheduleSet::Force);
+    }
+}
+
+// ── Boundary freeze ──────────────────────────────────────────────────────────
+
+/// Freeze boundary particles: zero their force and velocity each step so they
+/// stay fixed in place, while still participating in the SPH sums (they develop
+/// pressure via continuity/EOS and support the fluid). Runs at PostForce, after
+/// all force contributions (SPH stress + gravity). No-op when there are no
+/// boundary particles.
+pub fn mud_freeze_boundary(mut atoms: ResMut<Atom>, registry: Res<AtomDataRegistry>) {
+    let sph = registry.expect::<MudAtom>("mud_freeze_boundary");
+    for i in 0..atoms.nlocal as usize {
+        if sph.is_boundary[i] > 0.5 {
+            atoms.force[i] = [0.0; 3];
+            atoms.vel[i] = [0.0; 3];
+        }
+    }
+}
+
 /// Copy the `[[run]] dt` into `Atom::dt` (the Verlet integrator reads `Atom::dt`,
 /// which otherwise defaults to 1.0 — a catastrophic CFL violation). Mirrors POND's
 /// `set_timestep` / DIRT's `calculate_delta_time`.
@@ -263,6 +332,10 @@ impl Plugin for MudPhysicsPlugin {
         .add_update_system(
             mud_momentum.label("mud_force"),
             ParticleSimScheduleSet::Force,
+        )
+        .add_update_system(
+            mud_freeze_boundary.label("mud_freeze"),
+            ParticleSimScheduleSet::PostForce,
         );
     }
 }
