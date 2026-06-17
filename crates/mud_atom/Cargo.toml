@@ -1,0 +1,14 @@
+[package]
+name = "mud_atom"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "MUD — per-particle SPH data (MudAtom column) and granular material table, on the SOIL substrate."
+
+[dependencies]
+soil_core = { git = "https://github.com/SueHeir/soil.git", branch = "master", default-features = false }
+soil_derive = { git = "https://github.com/SueHeir/soil.git", branch = "master" }
+grass_app = { git = "https://github.com/SueHeir/grass.git", branch = "main" }
+grass_scheduler = { git = "https://github.com/SueHeir/grass.git", branch = "main" }
+serde = { version = "1", features = ["derive"] }
+mud_constitutive = { path = "../mud_constitutive" }

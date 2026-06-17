@@ -12,3 +12,14 @@ repository = "https://github.com/elizabeth-suehr/mud"
 opt-level = 3
 lto = "fat"
 codegen-units = 1
+
+# Build against the local grass checkout (mirrors DIRT) — pins the framework to
+# the working local tree. `soil` is pulled from GitHub (un-patched) so MUD stays
+# insulated from in-progress local `soil` edits (e.g. the LEBC work).
+[patch."https://github.com/SueHeir/grass.git"]
+grass_app       = { path = "/Users/suehr/Documents/GitHub/grass/crates/grass_app" }
+grass_derive    = { path = "/Users/suehr/Documents/GitHub/grass/crates/grass_derive" }
+grass_io        = { path = "/Users/suehr/Documents/GitHub/grass/crates/grass_io" }
+grass_mpi       = { path = "/Users/suehr/Documents/GitHub/grass/crates/grass_mpi" }
+grass_multi     = { path = "/Users/suehr/Documents/GitHub/grass/crates/grass_multi" }
+grass_scheduler = { path = "/Users/suehr/Documents/GitHub/grass/crates/grass_scheduler" }
