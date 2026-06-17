@@ -37,6 +37,9 @@ use soil_core::{register_atom_data, Atom, AtomData, AtomPlugin, Config, Schedule
 
 use mud_constitutive::MaterialParams;
 
+pub mod insert;
+pub use insert::*;
+
 // ── Per-particle SPH column ──────────────────────────────────────────────────
 
 /// Per-particle SPH extension data (`docs/architecture.md` §3).
@@ -139,6 +142,29 @@ impl MudMaterialConfig {
     }
 }
 
+/// A single lattice-fill insertion block from `[[mud.insert]]`.
+#[derive(Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct MudInsertConfig {
+    /// Material name (must match a `[[mud.materials]]` name).
+    pub material: String,
+    /// Lower corner of the fill block (m).
+    pub region_min: [f64; 3],
+    /// Upper corner of the fill block (m).
+    pub region_max: [f64; 3],
+    /// Lattice spacing Δ (m); particle volume is Δ³.
+    pub spacing: f64,
+    /// Initial velocity (m/s); defaults to zero.
+    #[serde(default)]
+    pub velocity: Option<[f64; 3]>,
+    /// Initial (rest) density (kg/m³); defaults to the material's ρ_c.
+    #[serde(default)]
+    pub rest_density: Option<f64>,
+    /// Smoothing length as a multiple of spacing, `h = h_factor · Δ`; default 1.3.
+    #[serde(default)]
+    pub h_factor: Option<f64>,
+}
+
 /// The `[mud]` config section.
 #[derive(Deserialize, Clone, Default)]
 #[serde(deny_unknown_fields)]
@@ -146,6 +172,9 @@ pub struct MudConfig {
     /// Granular material definitions.
     #[serde(default)]
     pub materials: Option<Vec<MudMaterialConfig>>,
+    /// Particle insertion blocks.
+    #[serde(default)]
+    pub insert: Option<Vec<MudInsertConfig>>,
 }
 
 /// Named granular materials, each resolved to constitutive [`MaterialParams`].

@@ -129,6 +129,18 @@ name = "mud_kernel"
 version = "0.1.0"
 
 [[package]]
+name = "mud_physics"
+version = "0.1.0"
+dependencies = [
+ "grass_app",
+ "grass_scheduler",
+ "mud_atom",
+ "mud_constitutive",
+ "mud_kernel",
+ "soil_core",
+]
+
+[[package]]
 name = "ppv-lite86"
 version = "0.2.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"

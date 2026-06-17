@@ -1,0 +1,14 @@
+[package]
+name = "mud_physics"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "MUD — the per-step SPH pipeline: density/velocity-gradient pass, constitutive update, momentum pass."
+
+[dependencies]
+soil_core = { git = "https://github.com/SueHeir/soil.git", branch = "master", default-features = false }
+grass_app = { git = "https://github.com/SueHeir/grass.git", branch = "main" }
+grass_scheduler = { git = "https://github.com/SueHeir/grass.git", branch = "main" }
+mud_kernel = { path = "../mud_kernel" }
+mud_constitutive = { path = "../mud_constitutive" }
+mud_atom = { path = "../mud_atom" }
