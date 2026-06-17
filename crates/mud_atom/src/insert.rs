@@ -85,6 +85,7 @@ fn insert_particle(
     sph.temperature.push(temperature0);
     sph.velgrad.push([0.0; 9]);
     sph.drho_dt.push(0.0);
+    sph.lap_t.push(0.0);
     sph.particle_mass.push(mass);
     sph.is_boundary.push(is_boundary);
 }

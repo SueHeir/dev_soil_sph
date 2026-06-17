@@ -523,3 +523,14 @@ fn homogeneous_cooling_follows_haff_law() {
         "Haff cooling: numeric {t:.6e} vs analytic {analytic:.6e} (rel err {rel_err:.2e})"
     );
 }
+
+#[test]
+fn kt_conductivity_scales_with_sqrt_t_and_is_positive() {
+    let p = MaterialParams::glass_beads_v0();
+    let rho = 0.5 * p.rho_s;
+    assert_eq!(kt_conductivity(rho, 0.0, &p), 0.0);
+    let k1 = kt_conductivity(rho, 0.01, &p);
+    let k4 = kt_conductivity(rho, 0.04, &p);
+    assert!(k1 > 0.0);
+    assert!((k4 / k1 - 2.0).abs() < 1e-9, "κ ∝ √T"); // 4× T → 2× κ
+}

@@ -65,3 +65,7 @@ soil_derive = { path = "/Users/suehr/Documents/GitHub/soil/crates/soil_derive" }
 soil_verlet = { path = "/Users/suehr/Documents/GitHub/soil/crates/soil_verlet" }
 soil_print  = { path = "/Users/suehr/Documents/GitHub/soil/crates/soil_print" }
 soil_deform = { path = "/Users/suehr/Documents/GitHub/soil/crates/soil_deform" }
+
+[[example]]
+name = "conduction_test"
+path = "examples/conduction_test/main.rs"

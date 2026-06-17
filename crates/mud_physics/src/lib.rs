@@ -37,7 +37,9 @@ use soil_core::{
 };
 
 use mud_atom::{MudAtom, MudAtomPlugin, MudMaterialTable};
-use mud_constitutive::{kt_cooling_rate, kt_production_rate, two_branch_stress};
+use mud_constitutive::{
+    kt_conductivity, kt_cooling_rate, kt_production_rate, two_branch_stress,
+};
 use mud_kernel::Kernel;
 
 /// Spatial dimension of the kernel (v0: 3D).
@@ -118,6 +120,43 @@ pub fn mud_integrate_density(atoms: Res<Atom>, registry: Res<AtomDataRegistry>) 
     }
 }
 
+// ── Granular-temperature conduction (PreForce gather, before the T update) ───
+
+/// SPH-Laplacian gather for the conduction term `∇·(κ∇T)` (Cleary/Brookshaw
+/// form), accumulated into the `lap_t` column. For each owner `i`:
+/// `∇·(κ∇T)_i = Σⱼ (mⱼ/ρⱼ)(κᵢ+κⱼ)(Tᵢ−Tⱼ)(rᵢⱼ·∇Wᵢⱼ)/(‖rᵢⱼ‖²+εh²)`.
+/// Reduces to `κ∇²T` for uniform κ; the sign diffuses heat hot→cold. κ uses the
+/// owner's material (base `atom_type` isn't forwarded — single-material v0).
+pub fn mud_conduction(atoms: Res<Atom>, neighbor: Res<Neighbor>, registry: Res<AtomDataRegistry>, table: Res<MudMaterialTable>) {
+    let mut sph = registry.expect_mut::<MudAtom>("mud_conduction");
+    let nlocal = atoms.nlocal as usize;
+    for (i, j) in neighbor.pairs(nlocal) {
+        let ti = sph.temperature[i];
+        let tj = sph.temperature[j];
+        // No flux if both cold (κ = 0 there) — cheap skip.
+        if ti <= 0.0 && tj <= 0.0 {
+            continue;
+        }
+        let dx = [
+            atoms.pos[i][0] - atoms.pos[j][0],
+            atoms.pos[i][1] - atoms.pos[j][1],
+            atoms.pos[i][2] - atoms.pos[j][2],
+        ];
+        let h = sph.h[i];
+        let gradw = KERNEL.grad_w(dx, h);
+        if gradw == [0.0, 0.0, 0.0] {
+            continue;
+        }
+        let mat = &table.params[atoms.atom_type[i] as usize];
+        let ki = kt_conductivity(sph.density[i], ti, mat);
+        let kj = kt_conductivity(sph.density[j], tj, mat);
+        let r2 = dx[0] * dx[0] + dx[1] * dx[1] + dx[2] * dx[2];
+        let rdotgw = dx[0] * gradw[0] + dx[1] * gradw[1] + dx[2] * gradw[2];
+        let vol_j = sph.particle_mass[j] / sph.density[j];
+        sph.lap_t[i] += vol_j * (ki + kj) * (ti - tj) * rdotgw / (r2 + 0.01 * h * h);
+    }
+}
+
 // ── Granular-temperature update (PreForce, after density integration) ────────
 
 /// Evolve the granular temperature `T` (`physics-design.md` §11.2). v0 scaffolding:
@@ -136,9 +175,9 @@ pub fn mud_temperature_update(
         let rho = sph.density[i];
         let t = sph.temperature[i];
         let l = sph.velgrad[i];
-        // dT/dt = production (collisional shear heating) − dissipation.
-        // TODO(v1): + conduction ∇·(κ∇T) (needs κ from the inhomogeneous DEM rig).
-        let dt_dt = kt_production_rate(rho, t, &l, mat) + kt_cooling_rate(rho, t, mat);
+        // dT/dt = production (shear heating) − dissipation + (2/3ρ)∇·(κ∇T).
+        let conduction = if rho > 0.0 { (2.0 / (3.0 * rho)) * sph.lap_t[i] } else { 0.0 };
+        let dt_dt = kt_production_rate(rho, t, &l, mat) + kt_cooling_rate(rho, t, mat) + conduction;
         sph.temperature[i] = (t + dt_dt * dt).max(0.0);
     }
 }
@@ -346,7 +385,11 @@ impl Plugin for MudPhysicsPlugin {
             ParticleSimScheduleSet::PreForce,
         )
         .add_update_system(
-            mud_temperature_update.label("mud_temp").after("mud_integ_rho"),
+            mud_conduction.label("mud_conduction").after("mud_integ_rho"),
+            ParticleSimScheduleSet::PreForce,
+        )
+        .add_update_system(
+            mud_temperature_update.label("mud_temp").after("mud_conduction"),
             ParticleSimScheduleSet::PreForce,
         )
         .add_update_system(

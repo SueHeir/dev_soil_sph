@@ -1,0 +1,50 @@
+# Conduction operator test: impose a sinusoidal granular-temperature field
+# T(x) = T0(1 + A sin(2πx/Lx)) and check the SPH Laplacian gather reproduces the
+# analytical conduction term ∇·(κ∇T) = −κ k² (T − T0). Dilute (Φ=0.4, pure KT),
+# static, periodic — isolates the operator from dissipation/flow. One step.
+
+[comm]
+processors_x = 1
+processors_y = 1
+processors_z = 1
+
+[domain]
+x_low = 0.0
+x_high = 0.05            # Lx — one wavelength
+y_low = 0.0
+y_high = 0.015          # ≥ 2h (uniform in y)
+z_low = 0.0
+z_high = 0.015          # ≥ 2h (uniform in z)
+boundary_x = "periodic"
+boundary_y = "periodic"
+boundary_z = "periodic"
+
+[neighbor]
+newton = false
+skin_fraction = 1.2
+bin_size = 0.01
+
+[mud]
+[[mud.materials]]
+name = "glass"
+mu_s = 0.38
+mu_2 = 0.64
+i0 = 0.28
+rho_s = 2500.0
+rho_c = 1500.0
+bulk_modulus = 3.75e6
+poisson = 0.3
+d = 0.5e-3
+restitution = 0.7
+
+[[mud.insert]]
+material = "glass"
+region_min = [0.0, 0.0, 0.0]
+region_max = [0.05, 0.015, 0.015]
+spacing = 0.0025               # 20 points / wavelength
+rest_density = 1000.0          # Φ = 0.4 (the example overwrites T with a sinusoid)
+
+[[run]]
+name = "one_step"
+steps = 1
+dt = 1.0e-7

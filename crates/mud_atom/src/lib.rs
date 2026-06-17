@@ -83,6 +83,11 @@ pub struct MudAtom {
     /// `dρ/dt` from the continuity sum; reset each step.
     #[zero]
     pub drho_dt: Vec<f64>,
+    /// `∇·(κ∇T)` — the granular-temperature conduction term, accumulated by the
+    /// SPH-Laplacian gather pass; reset each step. (Its `dT/dt` contribution is
+    /// `(2/3ρ)·∇·(κ∇T)`.)
+    #[zero]
+    pub lap_t: Vec<f64>,
     /// Rest mass (kg). Neighbors need it for kernel sums; base `Atom.mass` is not
     /// forward-communicated, so it is carried here as a `#[forward]` column.
     #[forward]
@@ -111,6 +116,7 @@ impl MudAtom {
             temperature: Vec::new(),
             velgrad: Vec::new(),
             drho_dt: Vec::new(),
+            lap_t: Vec::new(),
             particle_mass: Vec::new(),
             is_boundary: Vec::new(),
         }

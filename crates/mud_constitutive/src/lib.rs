@@ -453,6 +453,31 @@ pub fn kt_shear_viscosity(rho: f64, t: f64, params: &MaterialParams) -> f64 {
     eta_coll + eta_kin
 }
 
+/// Kinetic-theory granular conductivity `κ(ρ,T)` [Pa·s] for the fluctuation-energy
+/// flux `q = −κ ∇T` (Lun et al. / Gidaspow, collisional + kinetic). Same
+/// dimensional structure as `η_KT` (`∝ ρ_s d √T`). Zero at `T = 0`. The energy
+/// balance's conduction term is `∇·(κ∇T)`; its `dT/dt` contribution is
+/// `(2/3ρ)∇·(κ∇T)`. The *value* is the KT closure (recalibrate the dense regime
+/// from the inhomogeneous DEM conductivity rig); the *operator* is an SPH Laplacian.
+pub fn kt_conductivity(rho: f64, t: f64, params: &MaterialParams) -> f64 {
+    if t <= 0.0 {
+        return 0.0;
+    }
+    let phi = (rho / params.rho_s).max(1.0e-6);
+    let g0 = pair_correlation(phi);
+    let e = params.restitution;
+    let (rs, d) = (params.rho_s, params.d);
+    let sqrt_t = t.sqrt();
+    let sqrt_pi = std::f64::consts::PI.sqrt();
+    // Collisional (dense) part.
+    let k_coll = 2.0 * phi * phi * rs * d * g0 * (1.0 + e) * sqrt_t / sqrt_pi;
+    // Kinetic (dilute) part.
+    let bracket = 1.0 + 1.2 * g0 * phi * (1.0 + e); // 6/5 = 1.2
+    let k_kin =
+        (75.0 * rs * d * sqrt_pi * sqrt_t) / (384.0 * (1.0 + e) * g0) * bracket * bracket;
+    k_coll + k_kin
+}
+
 /// Granular-temperature production from collisional shear heating, as a `dT/dt`
 /// contribution: `(2/3ρ) τ_KT:D = (4 η_KT / 3ρ)(D':D')`. Needs the velocity
 /// gradient `l`. Zero at `T = 0` or zero shear. At steady state this balances
