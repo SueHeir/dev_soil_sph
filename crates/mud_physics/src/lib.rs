@@ -37,7 +37,7 @@ use soil_core::{
 };
 
 use mud_atom::{MudAtom, MudAtomPlugin, MudMaterialTable};
-use mud_constitutive::update_stress;
+use mud_constitutive::{kt_cooling_rate, update_stress_two_branch};
 use mud_kernel::Kernel;
 
 /// Spatial dimension of the kernel (v0: 3D).
@@ -118,6 +118,30 @@ pub fn mud_integrate_density(atoms: Res<Atom>, registry: Res<AtomDataRegistry>) 
     }
 }
 
+// ── Granular-temperature update (PreForce, after density integration) ────────
+
+/// Evolve the granular temperature `T` (`physics-design.md` §11.2). v0 scaffolding:
+/// the **homogeneous** balance `dT/dt = −Γ` (inelastic collisional cooling →
+/// Haff's law). Production (`σ_KT : D`) and conduction (`∇·κ∇T`) are later
+/// increments — flagged below. Per-particle; clamps `T ≥ 0`.
+pub fn mud_temperature_update(
+    atoms: Res<Atom>,
+    registry: Res<AtomDataRegistry>,
+    table: Res<MudMaterialTable>,
+) {
+    let mut sph = registry.expect_mut::<MudAtom>("mud_temperature_update");
+    let dt = atoms.dt;
+    for i in 0..atoms.nlocal as usize {
+        let mat = &table.params[atoms.atom_type[i] as usize];
+        let rho = sph.density[i];
+        let t = sph.temperature[i];
+        // TODO(v1): + production σ_KT:D (needs the KT viscosity closure)
+        // TODO(v1): + conduction ∇·(κ∇T) (needs κ from the inhomogeneous DEM rig)
+        let dt_dt = kt_cooling_rate(rho, t, mat);
+        sph.temperature[i] = (t + dt_dt * dt).max(0.0);
+    }
+}
+
 // ── Constitutive update (PreForce, after integration) ────────────────────────
 
 /// Per-particle stress update: `p = EOS(ρ)` and the μ(I) return map evolving the
@@ -134,7 +158,8 @@ pub fn mud_constitutive_update(
         let s_n = sph.dev_stress[i];
         let l = sph.velgrad[i];
         let rho = sph.density[i];
-        let out = update_stress(&s_n, &l, rho, dt, mat);
+        let t = sph.temperature[i];
+        let out = update_stress_two_branch(&s_n, &l, rho, t, dt, mat);
         sph.pressure[i] = out.pressure;
         sph.dev_stress[i] = out.dev_stress;
     }
@@ -319,7 +344,11 @@ impl Plugin for MudPhysicsPlugin {
             ParticleSimScheduleSet::PreForce,
         )
         .add_update_system(
-            mud_constitutive_update.label("mud_const").after("mud_integ_rho"),
+            mud_temperature_update.label("mud_temp").after("mud_integ_rho"),
+            ParticleSimScheduleSet::PreForce,
+        )
+        .add_update_system(
+            mud_constitutive_update.label("mud_const").after("mud_temp"),
             ParticleSimScheduleSet::PreForce,
         )
         // ★ mid-step halo: push freshly-computed ρ, p, σ to ghosts before the

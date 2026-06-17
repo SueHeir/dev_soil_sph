@@ -17,6 +17,10 @@ path = "examples/rest_state/main.rs"
 name = "hydrostatic_column"
 path = "examples/hydrostatic_column/main.rs"
 
+[[example]]
+name = "haff_cooling"
+path = "examples/haff_cooling/main.rs"
+
 [workspace]
 resolver = "2"
 members = ["crates/*"]

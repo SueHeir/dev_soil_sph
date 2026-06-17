@@ -78,7 +78,10 @@ pub mod prelude {
         MudAtom, MudAtomInsertPlugin, MudAtomPlugin, MudConfig, MudInsertConfig, MudMaterialConfig,
         MudMaterialTable,
     };
-    pub use mud_constitutive::{pressure, update_stress, MaterialParams, StressOut};
+    pub use mud_constitutive::{
+        kt_cooling_rate, kt_pressure, pair_correlation, pressure, update_stress,
+        update_stress_two_branch, MaterialParams, StressOut,
+    };
     pub use mud_kernel::Kernel;
     pub use mud_physics::{MudGravity, MudGravityPlugin, MudPhysicsPlugin};
 

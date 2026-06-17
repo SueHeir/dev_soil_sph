@@ -1,0 +1,55 @@
+# Haff cooling: a homogeneous dilute granular gas (Φ = 0.4, below ρ_c so the
+# contact branch is off → pure kinetic-theory branch). No gravity, no shear.
+# The granular temperature should decay as Haff's law T(t) = T0/(1+t/τ)² while
+# the bed stays at rest (uniform p_KT → no pressure gradient → no force).
+
+[comm]
+processors_x = 1
+processors_y = 1
+processors_z = 1
+
+[domain]
+x_low = 0.0
+x_high = 0.05
+y_low = 0.0
+y_high = 0.05
+z_low = 0.0
+z_high = 0.05
+boundary_x = "periodic"
+boundary_y = "periodic"
+boundary_z = "periodic"
+
+[neighbor]
+newton = false
+skin_fraction = 1.2
+bin_size = 0.02
+
+[mud]
+[[mud.materials]]
+name = "glass"
+mu_s = 0.38
+mu_2 = 0.64
+i0 = 0.28
+rho_s = 2500.0
+rho_c = 1500.0
+bulk_modulus = 3.75e6
+poisson = 0.3
+d = 0.5e-3
+restitution = 0.7
+
+[[mud.insert]]
+material = "glass"
+region_min = [0.0, 0.0, 0.0]
+region_max = [0.05, 0.05, 0.05]
+spacing = 0.005
+rest_density = 1000.0          # Φ = ρ/ρ_s = 0.4 (dilute, contact branch off)
+initial_temperature = 0.01     # T0 [m²/s²]
+
+[thermo]
+columns = ["step", "atoms", "ke"]
+
+[[run]]
+name = "cool"
+steps = 600
+thermo = 100
+dt = 1.0e-5

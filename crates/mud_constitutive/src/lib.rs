@@ -68,6 +68,8 @@ pub struct MaterialParams {
     pub g_shear: f64,
     /// Grain diameter d [m].
     pub d: f64,
+    /// Coefficient of restitution e (kinetic-theory branch / dissipation). 0–1.
+    pub restitution: f64,
 }
 
 impl MaterialParams {
@@ -104,6 +106,7 @@ impl MaterialParams {
             k_bulk,
             g_shear: Self::shear_from_bulk_poisson(k_bulk, nu),
             d: 0.5e-3,
+            restitution: 0.7,
         }
     }
 
@@ -378,6 +381,83 @@ pub fn update_stress(
         gamma_dot_p,
         disconnected: false,
     }
+}
+
+// ---------------------------------------------------------------------------
+// Kinetic-theory (collisional) branch + granular temperature (physics-design §11)
+// ---------------------------------------------------------------------------
+
+/// Carnahan–Starling pair-correlation at contact `g₀(Φ)`.
+///
+/// Diverges as `Φ → 1`; guarded just below close packing to stay finite.
+#[inline]
+pub fn pair_correlation(phi: f64) -> f64 {
+    let one_minus = (1.0 - phi).max(1.0e-3);
+    (2.0 - phi) / (2.0 * one_minus * one_minus * one_minus)
+}
+
+/// Collisional (kinetic-theory) pressure `p_KT = ρ T [1 + 2(1+e) Φ g₀(Φ)]`
+/// (`ρ = ρ_s Φ`). Granular temperature `T` is in velocity² (`T = ⅓⟨δv²⟩`).
+/// Zero when `T ≤ 0`. This is the agitated branch of the two-branch stress.
+#[inline]
+pub fn kt_pressure(rho: f64, t: f64, params: &MaterialParams) -> f64 {
+    if t <= 0.0 {
+        return 0.0;
+    }
+    let phi = rho / params.rho_s;
+    let g0 = pair_correlation(phi);
+    rho * t * (1.0 + 2.0 * (1.0 + params.restitution) * phi * g0)
+}
+
+/// Granular-temperature cooling rate `dT/dt` from inelastic collisional
+/// dissipation in the **homogeneous** limit (no production, no conduction):
+/// `dT/dt = −A T^{3/2}`, with `A = 2 ζ Φ g₀ (1−e²) / (3 d)` and `ζ = 12/√π`
+/// (3-D smooth spheres, Lun et al.). Integrating this gives Haff's law
+/// `T(t) = T₀ / (1 + t/τ)²`, `τ = 2/(A√T₀)`.
+///
+/// `ζ` is the one quantity to recalibrate from `bench_*_haff_cooling` DEM; the
+/// *form* (T^{3/2}) is fixed by kinetic theory.
+#[inline]
+pub fn kt_cooling_rate(rho: f64, t: f64, params: &MaterialParams) -> f64 {
+    if t <= 0.0 {
+        return 0.0;
+    }
+    let phi = rho / params.rho_s;
+    let g0 = pair_correlation(phi);
+    let e = params.restitution;
+    let zeta = 12.0 / std::f64::consts::PI.sqrt();
+    let a = 2.0 * zeta * phi * g0 * (1.0 - e * e) / (3.0 * params.d);
+    -a * t.powf(1.5)
+}
+
+/// Two-branch stress update: the enduring-contact branch ([`update_stress`],
+/// with density-based tension-free separation) plus the collisional KT pressure
+/// `p_KT(T)`. The total Cauchy stress is `σ = σ_contact + (−p_KT I)`.
+///
+/// Reduces **exactly** to [`update_stress`] when `T = 0` (so v0 behaviour is
+/// unchanged). When the contact branch is disconnected (`ρ < ρ_c`), the KT
+/// pressure still acts — the dilute/agitated regime carries stress through `T`.
+///
+/// The KT *deviatoric* viscosity and the shear-production term are a later
+/// increment (need the KT viscosity closure); this wrapper covers the pressure
+/// branch, which is what the homogeneous Haff-cooling milestone exercises.
+pub fn update_stress_two_branch(
+    s_n: &Sym3,
+    l: &[f64; 9],
+    rho: f64,
+    t: f64,
+    dt: f64,
+    params: &MaterialParams,
+) -> StressOut {
+    let mut out = update_stress(s_n, l, rho, dt, params);
+    let p_kt = kt_pressure(rho, t, params);
+    if p_kt != 0.0 {
+        out.pressure += p_kt;
+        out.sigma[XX] -= p_kt;
+        out.sigma[YY] -= p_kt;
+        out.sigma[ZZ] -= p_kt;
+    }
+    out
 }
 
 #[cfg(test)]

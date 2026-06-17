@@ -407,3 +407,75 @@ fn jaumann_term_is_traceless_and_symmetric_consistent() {
     let r_ref: Sym3 = [rm[0][0], rm[1][1], rm[2][2], rm[0][1], rm[0][2], rm[1][2]];
     assert!(dist(&r, &r_ref) < 1e-12);
 }
+
+// ── Kinetic-theory branch + granular temperature (§11) ───────────────────────
+
+#[test]
+fn kt_pressure_zero_at_zero_temperature() {
+    let p = MaterialParams::glass_beads_v0();
+    assert_eq!(kt_pressure(1200.0, 0.0, &p), 0.0);
+    // positive and ∝ T for T > 0
+    let p1 = kt_pressure(1200.0, 0.01, &p);
+    let p2 = kt_pressure(1200.0, 0.02, &p);
+    assert!(p1 > 0.0);
+    assert!((p2 / p1 - 2.0).abs() < 1e-12, "p_KT linear in T");
+}
+
+#[test]
+fn two_branch_reduces_to_contact_at_zero_temperature() {
+    let p = MaterialParams::glass_beads_v0();
+    // symmetric (pure) shear: L_xy = L_yx → D_xy nonzero, W = 0
+    let l = [0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+    let s_n = [0.0; 6];
+    let rho = 1.05 * p.rho_c;
+    let a = update_stress(&s_n, &l, rho, 1e-5, &p);
+    let b = update_stress_two_branch(&s_n, &l, rho, 0.0, 1e-5, &p);
+    assert_eq!(a.pressure, b.pressure);
+    assert_eq!(a.sigma, b.sigma);
+    assert_eq!(a.dev_stress, b.dev_stress);
+}
+
+#[test]
+fn two_branch_adds_kt_pressure() {
+    let p = MaterialParams::glass_beads_v0();
+    let rho = 1.05 * p.rho_c;
+    let t = 0.02;
+    let contact = update_stress(&[0.0; 6], &[0.0; 9], rho, 1e-5, &p);
+    let two = update_stress_two_branch(&[0.0; 6], &[0.0; 9], rho, t, 1e-5, &p);
+    let pkt = kt_pressure(rho, t, &p);
+    assert!(pkt > 0.0);
+    assert!((two.pressure - (contact.pressure + pkt)).abs() < 1e-6);
+    // σ diagonal gains −p_KT
+    assert!((two.sigma[0] - (contact.sigma[0] - pkt)).abs() < 1e-6);
+}
+
+#[test]
+fn homogeneous_cooling_follows_haff_law() {
+    // Integrate dT/dt = kt_cooling_rate (= −A T^{3/2}) and compare to the
+    // analytical Haff solution T(t) = T0 / (1 + t/τ)², τ = 2/(A√T0).
+    let p = MaterialParams::glass_beads_v0();
+    let rho = 0.4 * p.rho_s; // dilute granular gas (Φ = 0.4)
+    let t0 = 0.01_f64;
+
+    // A from the same formula the code uses (so τ is exact for this material).
+    let phi = rho / p.rho_s;
+    let g0 = pair_correlation(phi);
+    let zeta = 12.0 / std::f64::consts::PI.sqrt();
+    let a = 2.0 * zeta * phi * g0 * (1.0 - p.restitution * p.restitution) / (3.0 * p.d);
+    let tau = 2.0 / (a * t0.sqrt());
+
+    let dt = tau / 2000.0; // well-resolved
+    let mut t = t0;
+    let mut time = 0.0;
+    for _ in 0..6000 {
+        // ~3τ
+        t = (t + kt_cooling_rate(rho, t, &p) * dt).max(0.0);
+        time += dt;
+    }
+    let analytic = t0 / (1.0 + time / tau).powi(2);
+    let rel_err = (t - analytic).abs() / analytic;
+    assert!(
+        rel_err < 1e-2,
+        "Haff cooling: numeric {t:.6e} vs analytic {analytic:.6e} (rel err {rel_err:.2e})"
+    );
+}

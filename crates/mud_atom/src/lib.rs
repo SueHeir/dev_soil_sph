@@ -66,6 +66,12 @@ pub struct MudAtom {
     /// neighbors.
     #[forward]
     pub dev_stress: Vec<[f64; 6]>,
+    /// Granular temperature `T = ⅓⟨δv²⟩` (m²/s²) — the collisional-branch state
+    /// variable (`physics-design.md` §11). Persistent; read by neighbors (for
+    /// their `σ_KT` and the future conduction Laplacian). Defaults to 0 → the
+    /// collisional branch is off and behaviour reduces to the v0 contact model.
+    #[forward]
+    pub temperature: Vec<f64>,
     /// Velocity gradient `L = ∇v` (row-major `[f64; 9]`), accumulated in the
     /// density/velocity-gradient pass; reset each step.
     #[zero]
@@ -97,6 +103,7 @@ impl MudAtom {
             density: Vec::new(),
             pressure: Vec::new(),
             dev_stress: Vec::new(),
+            temperature: Vec::new(),
             velgrad: Vec::new(),
             drho_dt: Vec::new(),
             particle_mass: Vec::new(),
@@ -129,6 +136,13 @@ pub struct MudMaterialConfig {
     pub poisson: f64,
     /// Grain diameter d (m).
     pub d: f64,
+    /// Coefficient of restitution e (kinetic-theory branch); default 0.7.
+    #[serde(default = "default_restitution")]
+    pub restitution: f64,
+}
+
+fn default_restitution() -> f64 {
+    0.7
 }
 
 impl MudMaterialConfig {
@@ -143,6 +157,7 @@ impl MudMaterialConfig {
             k_bulk: self.bulk_modulus,
             g_shear: MaterialParams::shear_from_bulk_poisson(self.bulk_modulus, self.poisson),
             d: self.d,
+            restitution: self.restitution,
         }
     }
 }
@@ -172,6 +187,9 @@ pub struct MudInsertConfig {
     /// fluid). Default false.
     #[serde(default)]
     pub frozen: Option<bool>,
+    /// Initial granular temperature T (m²/s²); default 0 (collisional branch off).
+    #[serde(default)]
+    pub initial_temperature: Option<f64>,
 }
 
 /// The `[mud]` config section.
@@ -295,6 +313,7 @@ mod tests {
             bulk_modulus: 3.75e6,
             poisson: 0.3,
             d: 0.5e-3,
+            restitution: 0.7,
         };
         let p = cfg.to_params();
         assert_eq!(p.mu_s, 0.38);
