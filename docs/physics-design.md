@@ -166,4 +166,73 @@ Each particle stores $(\mathbf{x},\mathbf{v},\rho,\mathbf{s})$ + mass. Pressure 
 | **Dilute/collisional front ($I>0.3$)** | Add a kinetic-theory branch above an $I$ threshold; until then, document the front bias. |
 | **Φ(I) dilatancy transients** | v0 is critical-state/isochoric; add a $\Phi(I)$ evolution law when DEM provides it. |
 
-*Drafted 2026-06-16. Companion: `docs/literature-review.md`, `docs/sph-primer.md`, `docs/dem-campaign.md`.*
+---
+
+## 11. Planned v1 — two-branch stress + granular temperature (de-fluidization)
+
+**Why.** The landing-critical physics is *memory*: regolith arrives plume-fluidized
+(hot, dilated, high granular temperature `T`, low `Φ`) and **consolidates** —
+bearing capacity and sinkage are time-dependent as `T → 0` and the contact stress
+ramps up. The v0 μ(I)/Drucker–Prager model is memoryless and cannot produce this
+transient. Granular temperature `T` is the state variable that remembers prior
+agitation. (Project direction, 2026-06-16; KT closure already in
+`docs/dem-lebc-kt-spec.md`.)
+
+### 11.1 Two-branch stress
+
+$$\boldsymbol{\sigma} = \boldsymbol{\sigma}_{\mathrm{KT}}(T,\Phi) + \boldsymbol{\sigma}_{\mathrm{contact}}(\Phi)$$
+
+- **Collisional (kinetic-theory) branch** — agitated, T-dependent:
+  $$p_{\mathrm{KT}} = \rho_s\,\Phi\,T\big[\,1 + 2(1+e)\,\Phi\,g_0(\Phi)\,\big], \qquad
+  \boldsymbol{\tau}_{\mathrm{KT}} = \eta_{\mathrm{KT}}(\Phi,T)\,\dot{\boldsymbol{\gamma}}$$
+  with `g_0` the Carnahan–Starling pair correlation. Known from KT (Lun/Garzó–Dufty),
+  validated on the LEBC rig.
+- **Enduring-contact branch** — the calibrated residual `σ_contact = p_DEM − p_KT`
+  vs `Φ`, switching on above a crossover `Φ_c`. This is the v0 contact stress (μ(I)
+  Drucker–Prager) recast as a function of `Φ`. **Needs the vf-grid DEM campaign.**
+
+`Φ = ρ/ρ_s` is already available from the carried (continuity) density — no new
+volumetric field.
+
+### 11.2 Granular-temperature balance
+
+$$\frac{DT}{Dt} = \underbrace{\mathcal{P}}_{\text{production}} - \underbrace{\Gamma}_{\text{dissipation}} + \underbrace{\nabla\!\cdot(\kappa\,\nabla T)}_{\text{conduction}}$$
+
+- **Production** `P` — collisional stress working against shear, local
+  (`∝ σ_KT : D`); uses the velocity gradient already computed in pass 1.
+- **Dissipation** `Γ` — inelastic cooling `∝ γ*(Φ,e)\,ρ_s Φ² g_0 (1-e²) T^{3/2}/d`,
+  local. **Known/validated** (LEBC `T*` + `bench_*_haff_cooling`).
+- **Conduction** `∇·(κ∇T)` — an SPH Laplacian (neighbor gather, Brookshaw/Cleary
+  form with harmonic-mean `κ`). The coefficient `κ(Φ,e)` is the **one missing DEM
+  measurement** — needs the inhomogeneous (boundary-heated) DIRT rig.
+
+### 11.3 MUD code impact (modular)
+
+- **New `MudAtom` column** `temperature` (`#[forward]` — neighbors read `T` for the
+  conduction Laplacian and for their `σ_KT`), plus a `#[zero]` accumulator for the
+  conduction gather. `T` is persistent state, integrated by §11.2.
+- **One new neighbor pass** (conduction Laplacian) + **one per-particle T
+  integration** (production − dissipation + conduction), slotted into `PreForce`
+  between the density pass and the constitutive update. `T` joins the forwarded
+  columns at the mid-step halo.
+- **`mud_constitutive::update_stress` becomes two-branch** — `σ_KT(T,Φ) +
+  σ_contact(Φ)` — behind the same pure-function interface (the architecture's payoff:
+  this swap touches only the constitutive crate + adds the T systems).
+
+### 11.4 Sequencing & first MUD milestone
+
+- **Can build now** (theory-based, no new DEM): `σ_KT`, production, dissipation. The
+  **homogeneous Haff-cooling test** (uniform `T_0`, no shear/gravity → `T(t)` decays
+  as Haff's law) needs *neither* `κ` *nor* `σ_contact` → the natural first MUD-side
+  `T` milestone, analogous to rest_state/hydrostatic.
+- **Waits on DEM:** `σ_contact(Φ)` (vf campaign, running) and `κ(Φ,e)` (inhomogeneous
+  rig, to be built). These swap in like `glass_beads_v0` did for μ(I).
+- **Headline validation:** a DEM de-fluidization transient (hot+dilated bed cools and
+  consolidates) reproduced by MUD — `T`-decay, `Φ`-rise, contact-stress hand-off.
+
+Active-plume / two-phase gas coupling is a later, larger step; dry de-fluidization
+*aftermath* is the tractable, landing-relevant first target.
+
+---
+
+*Drafted 2026-06-16. §11 added 2026-06-16. Companion: `docs/literature-review.md`, `docs/sph-primer.md`, `docs/dem-campaign.md`, `docs/dem-lebc-kt-spec.md`.*
