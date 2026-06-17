@@ -1,0 +1,76 @@
+# Granular column collapse — the classic μ(I) validation. A dense column slumps
+# under gravity onto a frozen floor and spreads into a deposit. Quasi-2D (thin
+# periodic y), flow in x. Dumps OVITO-native .lammpstrj frames for visualization.
+
+[comm]
+processors_x = 1
+processors_y = 1
+processors_z = 1
+
+[domain]
+x_low = -0.15
+x_high = 0.15
+y_low = 0.0
+y_high = 0.015          # ≥ 2h so the periodic y-images form a full (2D-uniform) bulk
+z_low = -0.015
+z_high = 0.20
+boundary_x = "fixed"
+boundary_y = "periodic"
+boundary_z = "fixed"
+
+[neighbor]
+newton = false
+skin_fraction = 1.2
+bin_size = 0.02
+
+[gravity]
+gx = 0.0
+gy = 0.0
+gz = -9.81
+
+[mud]
+[[mud.materials]]
+name = "glass"
+mu_s = 0.38
+mu_2 = 0.64
+i0 = 0.28
+rho_s = 2500.0
+rho_c = 1500.0
+bulk_modulus = 3.75e6
+poisson = 0.3
+d = 0.5e-3
+restitution = 0.7
+
+# Frozen floor: 3 layers across the run-out span.
+[[mud.insert]]
+material = "glass"
+region_min = [-0.13, 0.0, -0.015]
+region_max = [0.13, 0.015, 0.0]
+spacing = 0.0025
+frozen = true
+
+# The column: half-width r0 = 0.025, height H0 = 0.05 → aspect ratio a = 2.
+# Seed a tiny granular temperature so production can bootstrap off the T=0 fixed
+# point: T lights up where the column shears/flows, decays in the static core.
+[[mud.insert]]
+material = "glass"
+region_min = [-0.025, 0.0, 0.0]
+region_max = [0.025, 0.015, 0.05]
+spacing = 0.0025
+initial_temperature = 1.0e-5
+
+[output]
+dir = "examples/column_collapse/res_c"
+
+[dump]
+interval = 2000
+format = "lammps"       # .lammpstrj — OVITO-native
+
+[thermo]
+columns = ["step", "atoms", "ke"]
+
+[[run]]
+name = "collapse"
+steps = 20000
+thermo = 2000
+dt = 1.3e-5

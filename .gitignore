@@ -6,3 +6,5 @@ Cargo.lock.bak
 examples/*/dump/
 **/*.lammpstrj
 **/*.vtp
+examples/*/res_*/
+**/profile.csv

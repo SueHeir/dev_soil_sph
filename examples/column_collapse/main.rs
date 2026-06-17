@@ -56,7 +56,15 @@ fn main() {
     let sph = registry.expect::<MudAtom>("collapse post-check");
     let n = atoms.nlocal as usize;
 
-    let mut runout = 0.0f64; // max |x| of fluid
+    // Deposit profile on a RESOLUTION-INDEPENDENT grid: fixed bin width over a
+    // fixed span, surface height (max z) per bin. This is the shape we compare.
+    const DX_BIN: f64 = 0.005; // fixed physical bin width
+    const SPAN: f64 = 0.14; // half-width of the binned region (covers the floor)
+    const H_TOE: f64 = 0.005; // deposit-edge height threshold (robust runout)
+    let nbins = (2.0 * SPAN / DX_BIN) as usize;
+
+    let mut profile = vec![0.0f64; nbins];
+    let mut front_reach = 0.0f64; // max |x| of any fluid particle (incl. stragglers)
     let mut max_speed = 0.0f64;
     let mut max_t = 0.0f64;
     let mut n_fluid = 0;
@@ -65,23 +73,74 @@ fn main() {
             continue;
         }
         n_fluid += 1;
-        runout = runout.max(atoms.pos[i][0].abs());
+        let x = atoms.pos[i][0];
+        front_reach = front_reach.max(x.abs());
+        let b = (((x + SPAN) / DX_BIN) as usize).min(nbins - 1);
+        profile[b] = profile[b].max(atoms.pos[i][2]);
         let v = atoms.vel[i];
         max_speed = max_speed.max((v[0] * v[0] + v[1] * v[1] + v[2] * v[2]).sqrt());
         max_t = max_t.max(sph.temperature[i]);
     }
+    let bin_x = |b: usize| -> f64 { -SPAN + (b as f64 + 0.5) * DX_BIN };
+    let h_max = profile.iter().cloned().fold(0.0, f64::max);
+    // Robust runout = furthest |x| where the deposit is still ≥ H_TOE thick.
+    let toe = (0..nbins)
+        .filter(|&b| profile[b] >= H_TOE)
+        .map(|b| bin_x(b).abs())
+        .fold(0.0, f64::max);
+    let h_at = |frac: f64| -> f64 {
+        let b = (((frac * toe + SPAN) / DX_BIN) as usize).min(nbins - 1);
+        profile[b]
+    };
+
+    // Write the profile CSV (x, h) for overlay vs DEM / between resolutions.
+    if let Some(dir) = app.get_resource_ref::<Input>().and_then(|i| i.output_dir.clone()) {
+        let mut s = String::from("x,h\n");
+        for b in 0..nbins {
+            s.push_str(&format!("{:.5},{:.5}\n", bin_x(b), profile[b]));
+        }
+        let _ = std::fs::write(format!("{dir}/profile.csv"), s);
+        println!("(deposit profile written to {dir}/profile.csv)");
+    }
+
+    // Optional DEM/reference overlay: set MUD_DEM_PROFILE=path.csv (x,h rows) to
+    // get a one-number normalized L2 shape error vs that profile (e.g. the 100k-DEM
+    // deposit). Binned onto the same grid as the SPH profile.
+    if let Ok(path) = std::env::var("MUD_DEM_PROFILE") {
+        if let Ok(txt) = std::fs::read_to_string(&path) {
+            let mut refp = vec![0.0f64; nbins];
+            for line in txt.lines().skip(1) {
+                let mut it = line.split(',');
+                if let (Some(xs), Some(hs)) = (it.next(), it.next()) {
+                    if let (Ok(x), Ok(h)) = (xs.trim().parse::<f64>(), hs.trim().parse::<f64>()) {
+                        let b = (((x + SPAN) / DX_BIN) as usize).min(nbins - 1);
+                        refp[b] = refp[b].max(h);
+                    }
+                }
+            }
+            let (mut num, mut den) = (0.0, 0.0);
+            for b in 0..nbins {
+                num += (profile[b] - refp[b]).powi(2);
+                den += refp[b].powi(2);
+            }
+            let l2 = (num / den.max(1e-12)).sqrt();
+            println!("DEM overlay ({path}): normalized L2 shape error = {l2:.3}");
+        }
+    }
 
     // Lube planar scaling (rough): (r∞ − r0)/r0 ≈ 1.6 √a for a ≳ 1.7 (a = 2 here).
-    let spread = (runout - R0) / R0;
+    let spread = (toe - R0) / R0;
     let lube = 1.6 * 2.0f64.sqrt();
 
     println!("\n=== column_collapse result ===");
     println!("fluid particles: {n_fluid}");
-    println!("runout (max |x|): {runout:.4} m   (initial r0 = {R0})");
-    println!("spread (r∞−r0)/r0: {spread:.2}   (Lube ~{lube:.2} for a=2)");
+    println!("runout toe (h≥{H_TOE}): {toe:.4} m   front reach (max|x|): {front_reach:.4} m");
+    println!("spread (toe−r0)/r0: {spread:.2}   (Lube ~{lube:.2} for a=2)");
+    println!("deposit height:   h(0)={:.4}  h(.5r∞)={:.4}  h(.8r∞)={:.4}  h_max={h_max:.4}",
+        h_at(0.0), h_at(0.5), h_at(0.8));
     println!("max fluid speed:  {max_speed:.3e} m/s");
     println!("max granular T:   {max_t:.3e} m²/s²  (seed was 1e-5 → grew where it sheared)");
-    println!("OVITO frames:     examples/column_collapse/dump/*.lammpstrj");
+    println!("OVITO frames:     <output>/dump/*.lammpstrj");
 
     // Acceptance (v0, lenient): it collapsed/spread, did not blow up, and the
     // seeded temperature stayed bounded (didn't run away).
