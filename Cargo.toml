@@ -8,6 +8,7 @@ publish = false
 
 [dependencies]
 mud_core = { path = "crates/mud_core" }
+soil_deform = { git = "https://github.com/SueHeir/soil.git", branch = "master" }
 
 [[example]]
 name = "rest_state"
@@ -20,6 +21,10 @@ path = "examples/hydrostatic_column/main.rs"
 [[example]]
 name = "haff_cooling"
 path = "examples/haff_cooling/main.rs"
+
+[[example]]
+name = "shear_heating"
+path = "examples/shear_heating/main.rs"
 
 [workspace]
 resolver = "2"
@@ -46,3 +51,13 @@ grass_io        = { path = "/Users/suehr/Documents/GitHub/grass/crates/grass_io"
 grass_mpi       = { path = "/Users/suehr/Documents/GitHub/grass/crates/grass_mpi" }
 grass_multi     = { path = "/Users/suehr/Documents/GitHub/grass/crates/grass_multi" }
 grass_scheduler = { path = "/Users/suehr/Documents/GitHub/grass/crates/grass_scheduler" }
+
+# TEMPORARY: build against the local `soil` checkout to pick up the (landed but
+# uncommitted) triclinic / Lees-Edwards-shear work, so MUD can shear with
+# soil_deform. Revert to the GitHub-pinned soil once that work is committed+pushed.
+[patch."https://github.com/SueHeir/soil.git"]
+soil_core   = { path = "/Users/suehr/Documents/GitHub/soil/crates/soil_core" }
+soil_derive = { path = "/Users/suehr/Documents/GitHub/soil/crates/soil_derive" }
+soil_verlet = { path = "/Users/suehr/Documents/GitHub/soil/crates/soil_verlet" }
+soil_print  = { path = "/Users/suehr/Documents/GitHub/soil/crates/soil_print" }
+soil_deform = { path = "/Users/suehr/Documents/GitHub/soil/crates/soil_deform" }

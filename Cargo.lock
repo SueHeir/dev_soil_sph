@@ -128,6 +128,7 @@ name = "mud"
 version = "0.1.0"
 dependencies = [
  "mud_core",
+ "soil_deform",
 ]
 
 [[package]]
@@ -297,7 +298,6 @@ dependencies = [
 [[package]]
 name = "soil_core"
 version = "0.1.3"
-source = "git+https://github.com/SueHeir/soil.git?branch=master#4fec53ea69437cd5fe67ef592b43b1516ef0542d"
 dependencies = [
  "grass_app",
  "grass_derive",
@@ -310,9 +310,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "soil_deform"
+version = "0.1.3"
+dependencies = [
+ "grass_app",
+ "grass_scheduler",
+ "serde",
+ "soil_core",
+]
+
+[[package]]
 name = "soil_derive"
 version = "0.1.3"
-source = "git+https://github.com/SueHeir/soil.git?branch=master#4fec53ea69437cd5fe67ef592b43b1516ef0542d"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -322,7 +331,6 @@ dependencies = [
 [[package]]
 name = "soil_print"
 version = "0.1.3"
-source = "git+https://github.com/SueHeir/soil.git?branch=master#4fec53ea69437cd5fe67ef592b43b1516ef0542d"
 dependencies = [
  "bincode",
  "grass_app",
@@ -335,7 +343,6 @@ dependencies = [
 [[package]]
 name = "soil_verlet"
 version = "0.1.3"
-source = "git+https://github.com/SueHeir/soil.git?branch=master#4fec53ea69437cd5fe67ef592b43b1516ef0542d"
 dependencies = [
  "grass_app",
  "grass_scheduler",
