@@ -81,6 +81,7 @@ fn insert_particle(
     sph.density.push(density);
     sph.pressure.push(pressure0);
     sph.dev_stress.push([0.0; 6]);
+    sph.dev_stress_elastic.push([0.0; 6]);
     sph.temperature.push(temperature0);
     sph.velgrad.push([0.0; 9]);
     sph.drho_dt.push(0.0);

@@ -37,7 +37,7 @@ use soil_core::{
 };
 
 use mud_atom::{MudAtom, MudAtomPlugin, MudMaterialTable};
-use mud_constitutive::{kt_cooling_rate, update_stress_two_branch};
+use mud_constitutive::{kt_cooling_rate, kt_production_rate, two_branch_stress};
 use mud_kernel::Kernel;
 
 /// Spatial dimension of the kernel (v0: 3D).
@@ -135,9 +135,10 @@ pub fn mud_temperature_update(
         let mat = &table.params[atoms.atom_type[i] as usize];
         let rho = sph.density[i];
         let t = sph.temperature[i];
-        // TODO(v1): + production σ_KT:D (needs the KT viscosity closure)
-        // TODO(v1): + conduction ∇·(κ∇T) (needs κ from the inhomogeneous DEM rig)
-        let dt_dt = kt_cooling_rate(rho, t, mat);
+        let l = sph.velgrad[i];
+        // dT/dt = production (collisional shear heating) − dissipation.
+        // TODO(v1): + conduction ∇·(κ∇T) (needs κ from the inhomogeneous DEM rig).
+        let dt_dt = kt_production_rate(rho, t, &l, mat) + kt_cooling_rate(rho, t, mat);
         sph.temperature[i] = (t + dt_dt * dt).max(0.0);
     }
 }
@@ -155,13 +156,14 @@ pub fn mud_constitutive_update(
     let dt = atoms.dt;
     for i in 0..atoms.nlocal as usize {
         let mat = &table.params[atoms.atom_type[i] as usize];
-        let s_n = sph.dev_stress[i];
+        let s_n = sph.dev_stress_elastic[i];
         let l = sph.velgrad[i];
         let rho = sph.density[i];
         let t = sph.temperature[i];
-        let out = update_stress_two_branch(&s_n, &l, rho, t, dt, mat);
-        sph.pressure[i] = out.pressure;
-        sph.dev_stress[i] = out.dev_stress;
+        let out = two_branch_stress(&s_n, &l, rho, t, dt, mat);
+        sph.pressure[i] = out.pressure; // total: p_contact + p_KT
+        sph.dev_stress[i] = out.dev_total; // total: s_contact + 2η_KT D' (for force)
+        sph.dev_stress_elastic[i] = out.dev_elastic; // persistent s_contact (next s_n)
     }
 }
 

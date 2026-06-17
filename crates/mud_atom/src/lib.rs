@@ -61,11 +61,15 @@ pub struct MudAtom {
     /// Pressure `p` (Pa) from the EOS. Read by neighbors in the momentum pass.
     #[forward]
     pub pressure: Vec<f64>,
-    /// Deviatoric stress `s`, symmetric 3×3 as `[xx, yy, zz, xy, xz, yz]` (Pa).
-    /// Persistent state (hypoelastic, evolved by the return map) and read by
-    /// neighbors.
+    /// **Total** deviatoric stress for the momentum force = contact `s_contact` +
+    /// KT viscous `2η_KT D'` (Pa, `[xx,yy,zz,xy,xz,yz]`). Read by neighbors.
     #[forward]
     pub dev_stress: Vec<[f64; 6]>,
+    /// **Persistent** enduring-contact deviatoric `s_contact` — the hypoelastic
+    /// return-map state (next step's `s_n`). Kept separate from `dev_stress` so the
+    /// rate-dependent KT viscous stress never feeds back into the return map. Local
+    /// (not forwarded; only the constitutive reads it, on owners).
+    pub dev_stress_elastic: Vec<[f64; 6]>,
     /// Granular temperature `T = ⅓⟨δv²⟩` (m²/s²) — the collisional-branch state
     /// variable (`physics-design.md` §11). Persistent; read by neighbors (for
     /// their `σ_KT` and the future conduction Laplacian). Defaults to 0 → the
@@ -103,6 +107,7 @@ impl MudAtom {
             density: Vec::new(),
             pressure: Vec::new(),
             dev_stress: Vec::new(),
+            dev_stress_elastic: Vec::new(),
             temperature: Vec::new(),
             velgrad: Vec::new(),
             drho_dt: Vec::new(),

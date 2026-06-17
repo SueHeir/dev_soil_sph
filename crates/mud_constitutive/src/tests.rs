@@ -424,29 +424,73 @@ fn kt_pressure_zero_at_zero_temperature() {
 #[test]
 fn two_branch_reduces_to_contact_at_zero_temperature() {
     let p = MaterialParams::glass_beads_v0();
-    // symmetric (pure) shear: L_xy = L_yx → D_xy nonzero, W = 0
     let l = [0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0];
     let s_n = [0.0; 6];
     let rho = 1.05 * p.rho_c;
     let a = update_stress(&s_n, &l, rho, 1e-5, &p);
-    let b = update_stress_two_branch(&s_n, &l, rho, 0.0, 1e-5, &p);
+    let b = two_branch_stress(&s_n, &l, rho, 0.0, 1e-5, &p);
     assert_eq!(a.pressure, b.pressure);
-    assert_eq!(a.sigma, b.sigma);
-    assert_eq!(a.dev_stress, b.dev_stress);
+    assert_eq!(a.dev_stress, b.dev_elastic);
+    assert_eq!(a.dev_stress, b.dev_total); // no KT viscous stress at T = 0
 }
 
 #[test]
-fn two_branch_adds_kt_pressure() {
+fn two_branch_adds_kt_pressure_and_viscous_stress() {
     let p = MaterialParams::glass_beads_v0();
     let rho = 1.05 * p.rho_c;
     let t = 0.02;
+    // No shear: pressure gains p_KT, deviatoric unchanged.
     let contact = update_stress(&[0.0; 6], &[0.0; 9], rho, 1e-5, &p);
-    let two = update_stress_two_branch(&[0.0; 6], &[0.0; 9], rho, t, 1e-5, &p);
+    let two = two_branch_stress(&[0.0; 6], &[0.0; 9], rho, t, 1e-5, &p);
     let pkt = kt_pressure(rho, t, &p);
     assert!(pkt > 0.0);
     assert!((two.pressure - (contact.pressure + pkt)).abs() < 1e-6);
-    // σ diagonal gains −p_KT
-    assert!((two.sigma[0] - (contact.sigma[0] - pkt)).abs() < 1e-6);
+    assert_eq!(two.dev_total, contact.dev_stress); // no shear → no τ_KT
+
+    // With shear: τ_KT = 2 η_KT D' is added to the total deviatoric only.
+    let l = [0.0, 2.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0]; // D_xy = 2
+    let two_sh = two_branch_stress(&[0.0; 6], &l, rho, t, 1e-5, &p);
+    let eta = kt_shear_viscosity(rho, t, &p);
+    assert!(eta > 0.0);
+    let added = two_sh.dev_total[XY] - two_sh.dev_elastic[XY];
+    assert!((added - 2.0 * eta * 2.0).abs() < 1e-6 * (eta + 1.0), "τ_KT,xy = 2 η_KT D'_xy");
+}
+
+#[test]
+fn kt_shear_viscosity_scales_with_sqrt_t() {
+    let p = MaterialParams::glass_beads_v0();
+    let rho = 0.5 * p.rho_s;
+    assert_eq!(kt_shear_viscosity(rho, 0.0, &p), 0.0);
+    let e1 = kt_shear_viscosity(rho, 0.01, &p);
+    let e4 = kt_shear_viscosity(rho, 0.04, &p);
+    assert!(e1 > 0.0);
+    assert!((e4 / e1 - 2.0).abs() < 1e-9, "η_KT ∝ √T");
+}
+
+#[test]
+fn steady_shear_gives_bagnold_temperature() {
+    // Under constant shear, dT/dt = production + cooling drives T to a steady
+    // value where they balance; that T ∝ γ̇² (Bagnold). Integrate two shear rates.
+    let p = MaterialParams::glass_beads_v0();
+    let rho = 0.5 * p.rho_s;
+    let to_steady = |gdot: f64| -> f64 {
+        let l = [0.0, gdot, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]; // simple shear
+        let mut t = 1.0e-4_f64;
+        let dt = 1.0e-6;
+        for _ in 0..200_000 {
+            let rate = kt_production_rate(rho, t, &l, &p) + kt_cooling_rate(rho, t, &p);
+            t = (t + rate * dt).max(1.0e-12);
+        }
+        t
+    };
+    let t1 = to_steady(50.0);
+    let t2 = to_steady(100.0); // 2× shear rate
+    assert!(((t2 / t1) - 4.0).abs() < 0.2, "Bagnold T∝γ̇²: ratio {:.3}", t2 / t1);
+    // balance holds at steady
+    let l1 = [0.0, 50.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+    let prod = kt_production_rate(rho, t1, &l1, &p);
+    let bal = prod + kt_cooling_rate(rho, t1, &p);
+    assert!(bal.abs() < 1.0e-2 * prod.abs(), "production ≈ dissipation at steady");
 }
 
 #[test]

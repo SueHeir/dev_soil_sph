@@ -79,8 +79,8 @@ pub mod prelude {
         MudMaterialTable,
     };
     pub use mud_constitutive::{
-        kt_cooling_rate, kt_pressure, pair_correlation, pressure, update_stress,
-        update_stress_two_branch, MaterialParams, StressOut,
+        kt_cooling_rate, kt_pressure, kt_production_rate, kt_shear_viscosity, pair_correlation,
+        pressure, two_branch_stress, update_stress, MaterialParams, StressOut, TwoBranchStress,
     };
     pub use mud_kernel::Kernel;
     pub use mud_physics::{MudGravity, MudGravityPlugin, MudPhysicsPlugin};

@@ -430,34 +430,94 @@ pub fn kt_cooling_rate(rho: f64, t: f64, params: &MaterialParams) -> f64 {
     -a * t.powf(1.5)
 }
 
-/// Two-branch stress update: the enduring-contact branch ([`update_stress`],
-/// with density-based tension-free separation) plus the collisional KT pressure
-/// `p_KT(T)`. The total Cauchy stress is `σ = σ_contact + (−p_KT I)`.
-///
-/// Reduces **exactly** to [`update_stress`] when `T = 0` (so v0 behaviour is
-/// unchanged). When the contact branch is disconnected (`ρ < ρ_c`), the KT
-/// pressure still acts — the dilute/agitated regime carries stress through `T`.
-///
-/// The KT *deviatoric* viscosity and the shear-production term are a later
-/// increment (need the KT viscosity closure); this wrapper covers the pressure
-/// branch, which is what the homogeneous Haff-cooling milestone exercises.
-pub fn update_stress_two_branch(
+/// Kinetic-theory shear viscosity `η_KT(ρ,T)` [Pa·s] (collisional + kinetic,
+/// Lun et al. 1984 / Gidaspow). Scales as `ρ_s d √T`; the collisional part `∝ Φ²
+/// g₀` dominates in the dense regime, the kinetic part `∝ 1/(Φ g₀)` in the dilute
+/// limit. Zero at `T = 0`. The KT *deviatoric* stress is `τ_KT = 2 η_KT D'`.
+pub fn kt_shear_viscosity(rho: f64, t: f64, params: &MaterialParams) -> f64 {
+    if t <= 0.0 {
+        return 0.0;
+    }
+    let phi = (rho / params.rho_s).max(1.0e-6);
+    let g0 = pair_correlation(phi);
+    let e = params.restitution;
+    let (rs, d) = (params.rho_s, params.d);
+    let sqrt_t = t.sqrt();
+    let sqrt_pi = std::f64::consts::PI.sqrt();
+    // Collisional (dense) part.
+    let eta_coll = 0.8 * phi * phi * rs * d * g0 * (1.0 + e) * sqrt_t / sqrt_pi;
+    // Kinetic (dilute) part.
+    let bracket = 1.0 + 0.8 * g0 * phi * (1.0 + e);
+    let eta_kin =
+        (10.0 * rs * d * sqrt_pi * sqrt_t) / (96.0 * phi * (1.0 + e) * g0) * bracket * bracket;
+    eta_coll + eta_kin
+}
+
+/// Granular-temperature production from collisional shear heating, as a `dT/dt`
+/// contribution: `(2/3ρ) τ_KT:D = (4 η_KT / 3ρ)(D':D')`. Needs the velocity
+/// gradient `l`. Zero at `T = 0` or zero shear. At steady state this balances
+/// [`kt_cooling_rate`], giving the Bagnold scaling `T ∝ γ̇²`.
+pub fn kt_production_rate(rho: f64, t: f64, l: &[f64; 9], params: &MaterialParams) -> f64 {
+    if t <= 0.0 || rho <= 0.0 {
+        return 0.0;
+    }
+    let eta = kt_shear_viscosity(rho, t, params);
+    let (d, _w) = decompose_velocity_gradient(l);
+    let d_dev = deviator(&d);
+    let d2 = double_dot(&d_dev, &d_dev); // D':D'
+    4.0 * eta * d2 / (3.0 * rho)
+}
+
+/// Assembled two-branch stress (`physics-design.md` §11.1).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct TwoBranchStress {
+    /// The persistent enduring-contact deviatoric stress `s_contact` — store this
+    /// back as next step's `s_n` (it is the hypoelastic return-map state; the KT
+    /// viscous stress is rate-dependent and must NOT be fed back into it).
+    pub dev_elastic: Sym3,
+    /// Total deviatoric stress for the momentum force: `s_contact + 2 η_KT D'`.
+    pub dev_total: Sym3,
+    /// Total pressure `p_contact + p_KT`.
+    pub pressure: f64,
+    /// True if the contact branch is disconnected (`ρ < ρ_c`); the KT branch may
+    /// still carry stress.
+    pub disconnected: bool,
+}
+
+/// Two-branch stress: enduring-contact branch ([`update_stress`], with
+/// density-based tension-free separation) + collisional KT branch (`p_KT(T)`
+/// pressure and `τ_KT = 2 η_KT(T) D'` viscous deviatoric). Reduces **exactly** to
+/// the contact branch when `T = 0`. When the contact branch is disconnected
+/// (`ρ < ρ_c`), the KT branch still acts — the agitated regime carries stress
+/// through `T`. The shear-production feedback into `T` is [`kt_production_rate`]
+/// (applied in the temperature update). Conduction `∇·(κ∇T)` is still v1.
+pub fn two_branch_stress(
     s_n: &Sym3,
     l: &[f64; 9],
     rho: f64,
     t: f64,
     dt: f64,
     params: &MaterialParams,
-) -> StressOut {
-    let mut out = update_stress(s_n, l, rho, dt, params);
+) -> TwoBranchStress {
+    let contact = update_stress(s_n, l, rho, dt, params);
     let p_kt = kt_pressure(rho, t, params);
-    if p_kt != 0.0 {
-        out.pressure += p_kt;
-        out.sigma[XX] -= p_kt;
-        out.sigma[YY] -= p_kt;
-        out.sigma[ZZ] -= p_kt;
+    let eta = kt_shear_viscosity(rho, t, params);
+
+    let mut dev_total = contact.dev_stress;
+    if eta != 0.0 {
+        let (d, _w) = decompose_velocity_gradient(l);
+        let d_dev = deviator(&d);
+        for k in 0..6 {
+            dev_total[k] += 2.0 * eta * d_dev[k];
+        }
     }
-    out
+
+    TwoBranchStress {
+        dev_elastic: contact.dev_stress,
+        dev_total,
+        pressure: contact.pressure + p_kt,
+        disconnected: contact.disconnected,
+    }
 }
 
 #[cfg(test)]
