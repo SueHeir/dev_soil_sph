@@ -26,7 +26,8 @@ GRASS   framework: App / Plugin / Scheduler / IO / MPI / coupling      (no parti
 |---|---|---|
 | `mud_atom` | `MudAtom` per-particle data column (ρ, deviatoric stress, h, accumulators) + `MudMaterialTable` + particle insertion | `dirt_atom` / `pond_atom` |
 | `mud_kernel` | Wendland C2 kernel `W`, `∇W`, support radius helpers (pure functions) | (new; trivial, no DEM analog) |
-| `mud_physics` | the per-step systems: density/velocity-gradient pass, constitutive update, momentum-force pass | `dirt_granular` / `pond_bond` |
+| `mud_constitutive` | the Dunatunga–Kamrin stress update (`update_stress`), `MaterialParams`, EOS, μ(I) — **pure, substrate-free** so gate #1 is unit-testable in isolation | (new; the §3.3 math) |
+| `mud_physics` | the per-step SOIL systems: density/velocity-gradient pass, calls `mud_constitutive::update_stress` per particle, momentum-force pass | `dirt_granular` / `pond_bond` |
 | `mud_core` | umbrella: re-export, `MudDefaultPlugins` PluginGroup, `prelude` | `dirt_core` / `pond_core` |
 
 **Reused as-is** (method-agnostic, no fork needed): `grass_app`, `grass_scheduler`, `grass_io`, `soil_core`, `soil_verlet`, `soil_print`, `soil_derive`, `dirt_fixes` (gravity / add-force / viscous damping), and `dirt_wall` (walls + the footpad rig — §6). `CorePlugins` (from `dirt_core`, DEM-free) gives us App/IO/domain/neighbor/run/print.
