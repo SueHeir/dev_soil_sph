@@ -30,7 +30,10 @@
 use grass_app::prelude::*;
 use grass_scheduler::prelude::*;
 
-use soil_core::{forward_comm_borders, Atom, AtomDataRegistry, Neighbor, ParticleSimScheduleSet};
+use soil_core::{
+    forward_comm_borders, Atom, AtomDataRegistry, Neighbor, ParticleSimScheduleSet, RunConfig,
+    ScheduleSetupSet,
+};
 
 use mud_atom::{MudAtom, MudAtomPlugin, MudMaterialTable};
 use mud_constitutive::update_stress;
@@ -138,9 +141,21 @@ pub fn mud_constitutive_update(
 
 // ── Pass 2: momentum (Force) ─────────────────────────────────────────────────
 
-/// Gather pass: stress-divergence force. For each owner `i`,
-/// `force_i += Σⱼ mᵢ mⱼ (σᵢ/ρᵢ² + σⱼ/ρⱼ²)·∇Wᵢⱼ`. Gravity is added separately.
-pub fn mud_momentum(mut atoms: ResMut<Atom>, neighbor: Res<Neighbor>, registry: Res<AtomDataRegistry>) {
+/// Monaghan artificial-viscosity coefficients (linear, quadratic). Provides the
+/// dissipation that stabilizes SPH (a perfect lattice is otherwise an unstable
+/// equilibrium). `docs/physics-design.md` §4. v0: hard-coded; configurable later.
+const AV_ALPHA: f64 = 1.0;
+const AV_BETA: f64 = 2.0;
+
+/// Gather pass: stress-divergence force plus Monaghan artificial viscosity.
+/// For each owner `i`,
+/// `force_i += Σⱼ mᵢ mⱼ (σᵢ/ρᵢ² + σⱼ/ρⱼ² − Πᵢⱼ I)·∇Wᵢⱼ`. Gravity is added separately.
+pub fn mud_momentum(
+    mut atoms: ResMut<Atom>,
+    neighbor: Res<Neighbor>,
+    registry: Res<AtomDataRegistry>,
+    table: Res<MudMaterialTable>,
+) {
     let sph = registry.expect::<MudAtom>("mud_momentum");
     let nlocal = atoms.nlocal as usize;
 
@@ -150,17 +165,45 @@ pub fn mud_momentum(mut atoms: ResMut<Atom>, neighbor: Res<Neighbor>, registry: 
             atoms.pos[i][1] - atoms.pos[j][1],
             atoms.pos[i][2] - atoms.pos[j][2],
         ];
-        let gradw = KERNEL.grad_w(dx, sph.h[i]);
+        let h = sph.h[i];
+        let gradw = KERNEL.grad_w(dx, h);
         if gradw == [0.0, 0.0, 0.0] {
             continue;
         }
         let mi = sph.particle_mass[i];
         let mj = sph.particle_mass[j];
-        let rhoi2 = sph.density[i] * sph.density[i];
-        let rhoj2 = sph.density[j] * sph.density[j];
+        let rho_i = sph.density[i];
+        let rho_j = sph.density[j];
+        let rhoi2 = rho_i * rho_i;
+        let rhoj2 = rho_j * rho_j;
         let sig_i = sigma(&sph, i);
         let sig_j = sigma(&sph, j);
-        let term: [f64; 6] = std::array::from_fn(|k| sig_i[k] / rhoi2 + sig_j[k] / rhoj2);
+        let mut term: [f64; 6] = std::array::from_fn(|k| sig_i[k] / rhoi2 + sig_j[k] / rhoj2);
+
+        // Monaghan artificial viscosity Π_ij: active only for approaching pairs
+        // (v_ij·r_ij < 0). Adds an isotropic dissipative pressure (−Π onto the
+        // stress-tensor diagonal, since σ = −p I + s here uses compression-positive p).
+        let vij = [
+            atoms.vel[i][0] - atoms.vel[j][0],
+            atoms.vel[i][1] - atoms.vel[j][1],
+            atoms.vel[i][2] - atoms.vel[j][2],
+        ];
+        let vdotr = vij[0] * dx[0] + vij[1] * dx[1] + vij[2] * dx[2];
+        if vdotr < 0.0 {
+            let r2 = dx[0] * dx[0] + dx[1] * dx[1] + dx[2] * dx[2];
+            let mu = h * vdotr / (r2 + 0.01 * h * h);
+            // Use the owner's material sound speed. `i` is always local; base
+            // `atom_type` is NOT forward-communicated, so `atom_type[j]` is invalid
+            // for ghost `j`. Single-material v0 → c_i == c_j anyway.
+            let c_bar = table.params[atoms.atom_type[i] as usize].sound_speed();
+            let rho_bar = 0.5 * (rho_i + rho_j);
+            let pi_ij = (-AV_ALPHA * c_bar * mu + AV_BETA * mu * mu) / rho_bar;
+            // a_i += Σ_j m_j (−Π_ij I)·∇W  ⇒  subtract Π_ij from the diagonal.
+            term[0] -= pi_ij;
+            term[1] -= pi_ij;
+            term[2] -= pi_ij;
+        }
+
         let tg = sym3_mat_vec(&term, &gradw);
         for d in 0..3 {
             atoms.force[i][d] += mi * mj * tg[d];
@@ -169,6 +212,16 @@ pub fn mud_momentum(mut atoms: ResMut<Atom>, neighbor: Res<Neighbor>, registry: 
 }
 
 // ── Plugin ───────────────────────────────────────────────────────────────────
+
+/// Copy the `[[run]] dt` into `Atom::dt` (the Verlet integrator reads `Atom::dt`,
+/// which otherwise defaults to 1.0 — a catastrophic CFL violation). Mirrors POND's
+/// `set_timestep` / DIRT's `calculate_delta_time`.
+fn mud_set_timestep(mut atoms: ResMut<Atom>, run_config: Res<RunConfig>) {
+    let dt = run_config.current_stage(0).dt;
+    if dt > 0.0 {
+        atoms.dt = dt;
+    }
+}
 
 /// Registers the MUD per-step SPH systems in their schedule phases.
 pub struct MudPhysicsPlugin;
@@ -187,6 +240,7 @@ impl Plugin for MudPhysicsPlugin {
     }
 
     fn build(&self, app: &mut App) {
+        app.add_setup_system(mud_set_timestep, ScheduleSetupSet::PostSetup);
         app.add_update_system(
             mud_density_velgrad.label("mud_density"),
             ParticleSimScheduleSet::PreForce,

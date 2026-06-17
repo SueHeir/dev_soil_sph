@@ -1,3 +1,18 @@
+[package]
+name = "mud"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "MUD — Meshfree Unstructured Dynamics (granular SPH): examples and binaries"
+publish = false
+
+[dependencies]
+mud_core = { path = "crates/mud_core" }
+
+[[example]]
+name = "rest_state"
+path = "examples/rest_state/main.rs"
+
 [workspace]
 resolver = "2"
 members = ["crates/*"]

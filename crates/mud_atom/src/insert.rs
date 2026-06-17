@@ -10,6 +10,8 @@ use grass_scheduler::prelude::*;
 
 use soil_core::{Atom, AtomDataRegistry, Domain, ScheduleSetupSet};
 
+use mud_constitutive::pressure;
+
 use crate::{MudAtom, MudConfig, MudMaterialTable};
 
 /// Inserts MUD particles at setup time from `[[mud.insert]]` blocks.
@@ -52,6 +54,7 @@ fn insert_particle(
     vel: [f64; 3],
     mass: f64,
     density: f64,
+    pressure0: f64,
     h: f64,
     mat_idx: u32,
     tag: u32,
@@ -60,7 +63,9 @@ fn insert_particle(
     atom.nlocal += 1;
     atom.tag.push(tag);
     atom.origin_index.push(0);
-    atom.cutoff_radius.push(2.0 * h); // kernel support radius
+    // Neighbor pair cutoff is (r_i + r_j)·skin; with uniform h this gives the
+    // kernel support 2h when cutoff_radius = h.
+    atom.cutoff_radius.push(h);
     atom.image.push([0, 0, 0]);
     atom.is_ghost.push(false);
     atom.pos.push(pos);
@@ -72,7 +77,7 @@ fn insert_particle(
 
     sph.h.push(h);
     sph.density.push(density);
-    sph.pressure.push(0.0);
+    sph.pressure.push(pressure0);
     sph.dev_stress.push([0.0; 6]);
     sph.velgrad.push([0.0; 9]);
     sph.drho_dt.push(0.0);
@@ -104,6 +109,7 @@ pub fn mud_insert_atoms(
         });
         let params = &table.params[mat_idx];
         let rho0 = ins.rest_density.unwrap_or(params.rho_c);
+        let p0 = pressure(rho0, params);
         let h = ins.h_factor.unwrap_or(1.3) * ins.spacing;
         let mass = rho0 * ins.spacing.powi(3);
         let vel = ins.velocity.unwrap_or([0.0, 0.0, 0.0]);
@@ -119,7 +125,7 @@ pub fn mud_insert_atoms(
                     if owns_position(&domain, &pos) {
                         tag += 1;
                         insert_particle(
-                            &mut atom, &mut sph, pos, vel, mass, rho0, h, mat_idx as u32, tag,
+                            &mut atom, &mut sph, pos, vel, mass, rho0, p0, h, mat_idx as u32, tag,
                         );
                     }
                 }
