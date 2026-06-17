@@ -26,6 +26,10 @@ path = "examples/haff_cooling/main.rs"
 name = "shear_heating"
 path = "examples/shear_heating/main.rs"
 
+[[example]]
+name = "column_collapse"
+path = "examples/column_collapse/main.rs"
+
 [workspace]
 resolver = "2"
 members = ["crates/*"]
