@@ -69,3 +69,7 @@ soil_deform = { path = "/Users/suehr/Documents/GitHub/soil/crates/soil_deform" }
 [[example]]
 name = "conduction_test"
 path = "examples/conduction_test/main.rs"
+
+[[example]]
+name = "defluidization"
+path = "examples/defluidization/main.rs"
