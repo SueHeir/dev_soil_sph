@@ -84,7 +84,7 @@ pub mod prelude {
         TwoBranchStress,
     };
     pub use mud_kernel::Kernel;
-    pub use mud_physics::{MudGravity, MudGravityPlugin, MudPhysicsPlugin};
+    pub use mud_physics::{MudGravity, MudGravityPlugin, MudPhysicsPlugin, MudPlateForce};
 
     // Derive macros (multi-stage runs, etc.)
     pub use grass_derive::{ScheduleSet, StageEnum};

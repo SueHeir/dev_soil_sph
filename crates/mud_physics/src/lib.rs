@@ -307,6 +307,11 @@ pub fn mud_gravity(
     let sph = registry.expect::<MudAtom>("mud_gravity");
     let g = gravity.g;
     for i in 0..atoms.nlocal as usize {
+        // Skip boundary particles (floor/footpad are rigid; their weight is held
+        // by the structure, not the bed) so the plate reaction is pure bed force.
+        if sph.is_boundary[i] > 0.5 {
+            continue;
+        }
         let m = sph.particle_mass[i];
         atoms.force[i][0] += m * g[0];
         atoms.force[i][1] += m * g[1];
@@ -333,18 +338,51 @@ impl Plugin for MudGravityPlugin {
 
 // ── Boundary freeze ──────────────────────────────────────────────────────────
 
-/// Freeze boundary particles: zero their force and velocity each step so they
-/// stay fixed in place, while still participating in the SPH sums (they develop
-/// pressure via continuity/EOS and support the fluid). Runs at PostForce, after
-/// all force contributions (SPH stress + gravity). No-op when there are no
-/// boundary particles.
-pub fn mud_freeze_boundary(mut atoms: ResMut<Atom>, registry: Res<AtomDataRegistry>) {
+/// Net reaction of the bed on the **driven** rigid boundary (footpad), plus its
+/// mean height — updated each step by [`mud_freeze_boundary`]. `force` is the
+/// SPH bed force (gravity excluded); `z` is the footpad's mean height (sinkage =
+/// initial − current).
+#[derive(Default, Clone, Copy)]
+pub struct MudPlateForce {
+    pub force: [f64; 3],
+    pub z: f64,
+    pub n: usize,
+}
+
+/// Freeze boundary particles: pin each to its prescribed velocity (`boundary_vel`
+/// — `[0,0,0]` static floor/wall, or a driven footpad velocity) and zero its
+/// force, so it moves rigidly while still participating in the SPH sums. For the
+/// **driven** set, first accumulate the net bed reaction (the force the bed exerts
+/// before it is zeroed) into [`MudPlateForce`]. Runs at PostForce, after all force
+/// contributions. No-op when there are no boundary particles.
+pub fn mud_freeze_boundary(
+    mut atoms: ResMut<Atom>,
+    registry: Res<AtomDataRegistry>,
+    mut plate: ResMut<MudPlateForce>,
+) {
     let sph = registry.expect::<MudAtom>("mud_freeze_boundary");
+    let mut fsum = [0.0f64; 3];
+    let mut zsum = 0.0f64;
+    let mut npl = 0usize;
     for i in 0..atoms.nlocal as usize {
-        if sph.is_boundary[i] > 0.5 {
-            atoms.force[i] = [0.0; 3];
-            atoms.vel[i] = [0.0; 3];
+        if sph.is_boundary[i] <= 0.5 {
+            continue;
         }
+        let bv = sph.boundary_vel[i];
+        let driven = bv[0] != 0.0 || bv[1] != 0.0 || bv[2] != 0.0;
+        if driven {
+            // Reaction = bed force on the footpad this step (before zeroing).
+            for d in 0..3 {
+                fsum[d] += atoms.force[i][d];
+            }
+            zsum += atoms.pos[i][2];
+            npl += 1;
+        }
+        atoms.force[i] = [0.0; 3];
+        atoms.vel[i] = bv; // pin to prescribed velocity (static or driven)
+    }
+    if npl > 0 {
+        *plate = MudPlateForce { force: fsum, z: zsum / npl as f64, n: npl };
     }
 }
 
@@ -376,6 +414,7 @@ impl Plugin for MudPhysicsPlugin {
 
     fn build(&self, app: &mut App) {
         app.add_setup_system(mud_set_timestep, ScheduleSetupSet::PostSetup);
+        app.add_resource(MudPlateForce::default());
         app.add_update_system(
             mud_density_velgrad.label("mud_density"),
             ParticleSimScheduleSet::PreForce,

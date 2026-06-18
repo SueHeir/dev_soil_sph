@@ -73,3 +73,7 @@ path = "examples/conduction_test/main.rs"
 [[example]]
 name = "defluidization"
 path = "examples/defluidization/main.rs"
+
+[[example]]
+name = "footpad"
+path = "examples/footpad/main.rs"

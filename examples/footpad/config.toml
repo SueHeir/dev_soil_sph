@@ -1,0 +1,85 @@
+# Footpad (foundation test): a driven rigid plate penetrates a granular bed at
+# constant velocity; we read the net bed reaction vs sinkage. Periodic in x (a
+# periodic array of footpads) so no side walls; grains heave up between plates.
+# Cold bed for now — the de-fluidization-coupled, time-dependent bearing comes
+# later. This validates the moving-boundary + reaction-force machinery.
+
+[comm]
+processors_x = 1
+processors_y = 1
+processors_z = 1
+
+[domain]
+x_low = -0.06
+x_high = 0.06
+y_low = 0.0
+y_high = 0.015
+z_low = -0.015
+z_high = 0.12
+boundary_x = "periodic"
+boundary_y = "periodic"
+boundary_z = "fixed"
+
+[neighbor]
+newton = false
+skin_fraction = 1.2
+bin_size = 0.02
+
+[gravity]
+gx = 0.0
+gy = 0.0
+gz = -9.81
+
+[mud]
+[[mud.materials]]
+name = "glass"
+mu_s = 0.38
+mu_2 = 0.64
+i0 = 0.28
+rho_s = 2500.0
+rho_c = 1500.0
+bulk_modulus = 3.75e6
+poisson = 0.3
+d = 0.5e-3
+restitution = 0.7
+
+# Frozen floor.
+[[mud.insert]]
+material = "glass"
+region_min = [-0.06, 0.0, -0.015]
+region_max = [0.06, 0.015, 0.0]
+spacing = 0.005
+frozen = true
+
+# The granular bed.
+[[mud.insert]]
+material = "glass"
+region_min = [-0.06, 0.0, 0.0]
+region_max = [0.06, 0.015, 0.05]
+spacing = 0.005
+rest_density = 1500.0
+
+# The footpad: a rigid plate (3 layers thick, half-width 0.02) driven straight
+# down at 0.05 m/s. Sits just above the bed surface at t=0.
+[[mud.insert]]
+material = "glass"
+region_min = [-0.02, 0.0, 0.05]
+region_max = [0.02, 0.015, 0.065]
+spacing = 0.005
+frozen = true
+boundary_velocity = [0.0, 0.0, -0.05]
+
+[output]
+dir = "examples/footpad"
+
+[dump]
+interval = 400
+format = "lammps"
+
+[thermo]
+columns = ["step", "atoms", "ke"]
+
+[[run]]
+name = "penetrate"
+steps = 12000
+dt = 1.5e-5

@@ -58,6 +58,7 @@ fn insert_particle(
     temperature0: f64,
     h: f64,
     is_boundary: f64,
+    boundary_vel: [f64; 3],
     mat_idx: u32,
     tag: u32,
 ) {
@@ -88,6 +89,7 @@ fn insert_particle(
     sph.lap_t.push(0.0);
     sph.particle_mass.push(mass);
     sph.is_boundary.push(is_boundary);
+    sph.boundary_vel.push(boundary_vel);
 }
 
 /// Setup system: fill each `[[mud.insert]]` block with a lattice of particles.
@@ -121,6 +123,7 @@ pub fn mud_insert_atoms(
         let vel = ins.velocity.unwrap_or([0.0, 0.0, 0.0]);
         let t0 = ins.initial_temperature.unwrap_or(0.0);
         let is_boundary = if ins.frozen.unwrap_or(false) { 1.0 } else { 0.0 };
+        let bvel = ins.boundary_velocity.unwrap_or([0.0, 0.0, 0.0]);
 
         let xs = lattice_axis(ins.region_min[0], ins.region_max[0], ins.spacing);
         let ys = lattice_axis(ins.region_min[1], ins.region_max[1], ins.spacing);
@@ -134,7 +137,7 @@ pub fn mud_insert_atoms(
                         tag += 1;
                         insert_particle(
                             &mut atom, &mut sph, pos, vel, mass, rho0, p0, t0, h, is_boundary,
-                            mat_idx as u32, tag,
+                            bvel, mat_idx as u32, tag,
                         );
                     }
                 }

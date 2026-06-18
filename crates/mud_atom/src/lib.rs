@@ -96,6 +96,11 @@ pub struct MudAtom {
     /// participates in the SPH sums to support the fluid), 0.0 = free. Migrates
     /// with the atom; not forwarded (only the freeze system reads it, on owners).
     pub is_boundary: Vec<f64>,
+    /// Prescribed velocity for a boundary particle: `[0,0,0]` = static floor/wall;
+    /// non-zero = a *driven rigid boundary* (e.g. a footpad penetrating at constant
+    /// velocity). The freeze system pins boundary velocity to this and reads the
+    /// net bed reaction on the driven set. Local (not forwarded).
+    pub boundary_vel: Vec<[f64; 3]>,
 }
 
 impl Default for MudAtom {
@@ -119,6 +124,7 @@ impl MudAtom {
             lap_t: Vec::new(),
             particle_mass: Vec::new(),
             is_boundary: Vec::new(),
+            boundary_vel: Vec::new(),
         }
     }
 }
@@ -201,6 +207,10 @@ pub struct MudInsertConfig {
     /// Initial granular temperature T (m²/s²); default 0 (collisional branch off).
     #[serde(default)]
     pub initial_temperature: Option<f64>,
+    /// Prescribed velocity for a driven rigid boundary (requires `frozen = true`),
+    /// e.g. a footpad penetrating at `[0, 0, -V]`. Default static (`[0,0,0]`).
+    #[serde(default)]
+    pub boundary_velocity: Option<[f64; 3]>,
 }
 
 /// The `[mud]` config section.
