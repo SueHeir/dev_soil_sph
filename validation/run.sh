@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# MUD (dev_sph) validation set — one-command, skeptic-facing runner.
+#
+# Builds and runs ONLY the validation examples (rest_state, hydrostatic_column,
+# column_collapse a/b/c), each of which asserts a NUMERIC pass/fail against an
+# external reference (Bui 2008 tensile stability; Lube 2005 / Lagrée-Staron-
+# Popinet 2011 run-out & deposit scalings). Any FAIL exits non-zero.
+#
+# The demoted demos (haff_cooling, shear_heating, conduction_test, footpad,
+# defluidization) are intentionally NOT run here — see validation/manifest.toml.
+#
+# Usage:  source ~/projects/.build-env && validation/run.sh
+set -uo pipefail
+cd "$(dirname "$0")/.."   # repo root
+
+pass=0; fail=0
+run() { # <name> <config> <extra-run-args...>
+  local name="$1" cfg="$2"; shift 2
+  echo "── $name  ($cfg) ───────────────────────────────────────────"
+  local log; log="$(mktemp)"
+  # Run ONCE; the example itself exits non-zero on FAIL (its own numeric checks).
+  if cargo run --release --example "$name" -- "$cfg" "$@" >"$log" 2>/dev/null; then
+    grep -E "^(PASS|FAIL)" "$log" || echo "  (ran, no PASS line)"
+    pass=$((pass+1))
+  else
+    grep -E "^(PASS|FAIL)" "$log" || echo "  (no result)"
+    fail=$((fail+1)); echo "  -> FAILED: $name ($cfg)"
+  fi
+  rm -f "$log"
+}
+
+echo "=== dev_sph validation set ==="
+run rest_state         examples/rest_state/config.toml
+run hydrostatic_column examples/hydrostatic_column/config.toml
+run column_collapse    examples/column_collapse/config_a.toml
+run column_collapse    examples/column_collapse/config_b.toml
+run column_collapse    examples/column_collapse/config_c.toml
+
+echo "=========================================="
+echo "validation set: $pass passed, $fail failed"
+[ "$fail" -eq 0 ] || exit 1
+echo "ALL VALIDATIONS PASSED"

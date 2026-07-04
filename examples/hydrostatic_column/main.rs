@@ -98,14 +98,58 @@ fn main() {
     let slope_ratio = slope / expected;
 
     let settled = max_speed_fluid < 0.5; // << sound speed (50 m/s)
+
+    // ── Skeptic check #2: NO SPH tensile instability (Bui et al. 2008) ────────
+    // Bui, Fukagawa, Sako & Ohno (2008), IJNAMG 32:1537 (DOI 10.1002/nag.688):
+    // "the so-called SPH tensile instability ... may result in unrealistic
+    // fracture and particles clustering ... when the material is in tension."
+    // A physical hydrostatic column is compressive everywhere (p ≥ 0); a run that
+    // develops spurious *tension* (p < 0) is exhibiting the tensile instability
+    // Bui's artificial-stress fix exists to suppress. We assert the column stays
+    // compressive to a small tolerance (−0.5% of the base hydrostatic pressure).
+    let (mut p_min, mut p_max) = (f64::INFINITY, f64::NEG_INFINITY);
+    for &(_, p, ..) in &fluid {
+        p_min = p_min.min(p);
+        p_max = p_max.max(p);
+    }
+    let p_base_hydro = RHO_REF * G * (z_top - z_bot); // ρg·H over the fluid span
+    let p_tol = 0.005 * p_base_hydro; // allow only a tiny negative excursion
+    let no_tension = p_min >= -p_tol;
+
+    // ── Skeptic check #3: NO particle clumping / voids (Bui et al. 2008) ──────
+    // The other signature of the tensile instability is density clustering
+    // ("particles forming clumps"). A settled hydrostatic column is only weakly
+    // compressible (K = 3.75 MPa, ρg·H ≈ 100 Pa ⇒ Δρ/ρ ~ 1e-4), so the density
+    // field must stay tight. A clumped/voided field would show a wide spread.
+    let (mut rho_min, mut rho_max) = (f64::INFINITY, f64::NEG_INFINITY);
+    for &(_, _, rho, _) in &fluid {
+        rho_min = rho_min.min(rho);
+        rho_max = rho_max.max(rho);
+    }
+    let rho_spread = (rho_max - rho_min) / RHO_REF;
+    let no_clumping = rho_spread < 0.02; // < 2 % — no clustering/voids
+
     println!(
         "\nsettled: {settled} (max speed {max_speed_fluid:.3e})\n\
-         dp/dz = {slope:.1} Pa/m   expected −ρg = {expected:.1} Pa/m   ratio = {slope_ratio:.3}"
+         dp/dz = {slope:.1} Pa/m   expected −ρg = {expected:.1} Pa/m   ratio = {slope_ratio:.3}\n\
+         tensile stability (Bui 2008): p ∈ [{p_min:.2}, {p_max:.2}] Pa  (want p_min ≥ {:.2})\n\
+         clumping (Bui 2008):          ρ spread = {:.3}%  (want < 2%)",
+        -p_tol,
+        rho_spread * 100.0
     );
-    if settled && (0.7..=1.3).contains(&slope_ratio) {
-        println!("PASS: hydrostatic pressure gradient dp/dz ≈ −ρg established");
+
+    let grad_ok = (0.7..=1.3).contains(&slope_ratio);
+    if settled && grad_ok && no_tension && no_clumping {
+        println!(
+            "PASS: hydrostatic gradient dp/dz ≈ −ρg, compressive throughout (no tensile\n\
+             instability), density field tight (no clumping) — Bui 2008 skeptic checks green"
+        );
     } else {
-        eprintln!("FAIL: settled={settled}, dp/dz ratio={slope_ratio:.3} (want 0.7–1.3)");
+        eprintln!(
+            "FAIL: settled={settled}, grad_ok={grad_ok} (ratio {slope_ratio:.3}, want 0.7–1.3), \
+             no_tension={no_tension} (p_min {p_min:.2}), no_clumping={no_clumping} (spread {:.3}%)",
+            rho_spread * 100.0
+        );
         std::process::exit(1);
     }
 }
