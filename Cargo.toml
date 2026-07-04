@@ -8,6 +8,9 @@ publish = false
 
 [dependencies]
 mud_core = { path = "crates/mud_core" }
+# Pure constitutive core — used directly by the `simple_shear_mu_i` element test,
+# which drives the return map in isolation (no App / substrate).
+mud_constitutive = { path = "crates/mud_constitutive" }
 soil_deform = { git = "https://github.com/SueHeir/soil.git", branch = "master" }
 
 [[example]]
@@ -29,6 +32,10 @@ path = "examples/shear_heating/main.rs"
 [[example]]
 name = "column_collapse"
 path = "examples/column_collapse/main.rs"
+
+[[example]]
+name = "simple_shear_mu_i"
+path = "examples/simple_shear_mu_i/main.rs"
 
 [workspace]
 resolver = "2"
