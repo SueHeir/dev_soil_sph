@@ -38,7 +38,7 @@ members = ["crates/*"]
 version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/elizabeth-suehr/mud"
+repository = "https://github.com/SueHeir/mud"
 
 [profile.release]
 opt-level = 3
@@ -46,25 +46,39 @@ lto = "fat"
 codegen-units = 1
 
 # Build against the local grass checkout (mirrors DIRT) — pins the framework to
-# the working local tree. `soil` is pulled from GitHub (un-patched) so MUD stays
-# insulated from in-progress local `soil` edits (e.g. the LEBC work).
+# the working local tree. Relative sibling path so it is portable across hosts
+# (macOS/Linux): assumes grass is checked out beside this repo (e.g. ~/projects/grass).
 [patch."https://github.com/SueHeir/grass.git"]
-grass_app       = { path = "/Users/suehr/Documents/GitHub/grass/crates/grass_app" }
-grass_derive    = { path = "/Users/suehr/Documents/GitHub/grass/crates/grass_derive" }
-grass_io        = { path = "/Users/suehr/Documents/GitHub/grass/crates/grass_io" }
-grass_mpi       = { path = "/Users/suehr/Documents/GitHub/grass/crates/grass_mpi" }
-grass_multi     = { path = "/Users/suehr/Documents/GitHub/grass/crates/grass_multi" }
-grass_scheduler = { path = "/Users/suehr/Documents/GitHub/grass/crates/grass_scheduler" }
+grass_app       = { path = "../grass/crates/grass_app" }
+grass_derive    = { path = "../grass/crates/grass_derive" }
+grass_io        = { path = "../grass/crates/grass_io" }
+grass_mpi       = { path = "../grass/crates/grass_mpi" }
+grass_multi     = { path = "../grass/crates/grass_multi" }
+grass_scheduler = { path = "../grass/crates/grass_scheduler" }
 
-# TEMPORARY: build against the local `soil` checkout to pick up the (landed but
-# uncommitted) triclinic / Lees-Edwards-shear work, so MUD can shear with
-# soil_deform. Revert to the GitHub-pinned soil once that work is committed+pushed.
+# Build against the local `soil` checkout to pick up the triclinic / Lees-Edwards-shear
+# work, so MUD can shear with soil_deform. Relative sibling path so it is portable across
+# hosts (macOS/Linux): assumes soil is checked out beside this repo (e.g. ~/projects/soil).
+# (The GitHub-pinned `soil` dep targets branch `master`, which does not exist upstream, so
+# the local checkout is authoritative until that is reconciled.)
 [patch."https://github.com/SueHeir/soil.git"]
-soil_core   = { path = "/Users/suehr/Documents/GitHub/soil/crates/soil_core" }
-soil_derive = { path = "/Users/suehr/Documents/GitHub/soil/crates/soil_derive" }
-soil_verlet = { path = "/Users/suehr/Documents/GitHub/soil/crates/soil_verlet" }
-soil_print  = { path = "/Users/suehr/Documents/GitHub/soil/crates/soil_print" }
-soil_deform = { path = "/Users/suehr/Documents/GitHub/soil/crates/soil_deform" }
+soil_core   = { path = "../soil/crates/soil_core" }
+soil_derive = { path = "../soil/crates/soil_derive" }
+soil_verlet = { path = "../soil/crates/soil_verlet" }
+soil_print  = { path = "../soil/crates/soil_print" }
+soil_deform = { path = "../soil/crates/soil_deform" }
+
+# The local `soil` crates pull `grass` from the Gitea remote (the fleet's canonical
+# origin), while MUD's own `grass` deps are declared against the GitHub URL. Without
+# unifying them cargo builds two different `grass` copies and the trait impls collide.
+# Redirect the Gitea `grass` source to the SAME local `../grass` checkout as above so
+# soil and MUD share one `grass` version. (Only the grass crates soil actually uses.)
+[patch."ssh://git@192.168.0.170:2222/SueHeir/grass.git"]
+grass_app       = { path = "../grass/crates/grass_app" }
+grass_scheduler = { path = "../grass/crates/grass_scheduler" }
+grass_mpi       = { path = "../grass/crates/grass_mpi" }
+grass_derive    = { path = "../grass/crates/grass_derive" }
+grass_io        = { path = "../grass/crates/grass_io" }
 
 [[example]]
 name = "conduction_test"
