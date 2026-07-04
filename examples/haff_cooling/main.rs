@@ -1,3 +1,7 @@
+//! DEMO (not a validation) — self-consistent showcase, excluded from the dev_sph
+//! validation set (see validation/README.md). Its PASS/FAIL is a smoke check
+//! against MUD itself, not an independent reference.
+//!
 //! Haff cooling — the first granular-temperature milestone (`physics-design.md` §11).
 //!
 //! A homogeneous dilute granular gas (Φ = 0.4, below ρ_c so only the collisional

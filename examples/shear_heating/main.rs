@@ -1,4 +1,8 @@
-//! Shear heating — end-to-end validation of the KT shear-production term.
+//! DEMO (not a validation) — self-consistent showcase, excluded from the dev_sph
+//! validation set (see validation/README.md). Its PASS/FAIL is a smoke check
+//! against MUD itself, not an independent reference.
+//!
+//! Shear heating — end-to-end demo of the KT shear-production term.
 //!
 //! A homogeneous dilute granular gas (pure KT branch) is sheared by Lees-Edwards
 //! simple shear (`soil_deform`'s xy deform — the same rig as the DEM LEBC). The

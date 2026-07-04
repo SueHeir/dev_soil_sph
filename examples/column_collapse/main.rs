@@ -12,7 +12,8 @@
 
 use mud_core::prelude::*;
 
-const R0: f64 = 0.025; // initial column half-width
+const R0: f64 = 0.025; // initial column half-width  L0
+const H0: f64 = 0.05; // initial column height       H0  (config a = H0/R0 = 2)
 
 fn main() {
     let mut app = App::new();
@@ -128,28 +129,60 @@ fn main() {
         }
     }
 
-    // Lube planar scaling (rough): (r∞ − r0)/r0 ≈ 1.6 √a for a ≳ 1.7 (a = 2 here).
-    let spread = (toe - R0) / R0;
-    let lube = 1.6 * 2.0f64.sqrt();
+    // ── Skeptic reference: Lube 2005 experiment / Lagrée-Staron-Popinet 2011 ──
+    // Aspect ratio a = H0/L0. Lagrée, Staron & Popinet (2011), JFM 686:378
+    // (DOI 10.1017/jfm.2011.335), Eq. (3.1), give the experimental 2-D run-out
+    // scaling (L∞−L0)/L0 ≃ λ1·a (a<a0) with, at a=2:
+    //   • Lube et al. 2005 (sand/rice/sugar): λ1≃1.2, λ2≃1.9, 1.8≤a0≤2.8 → 2.40
+    //   • Lajeunesse et al. 2005 (glass beads): λ1≃1.8, a0≃3.0            → 3.60
+    // The cited experimental envelope at a=2 is therefore [2.40, 3.60]. (LSP's
+    // own μ(I) *continuum* over-spreads to 2.2·a = 4.40; discrete/SPH fronts
+    // under-spread that, landing back near the experiments — see LSP §3.1.)
+    let a = H0 / R0; // = 2
+    let runout_n = (toe - R0) / R0; // (L∞−L0)/L0
+    let (runout_lo, runout_hi) = (2.40, 3.60); // Lube ↔ Lajeunesse @ a=2, LSP Eq. 3.1
+
+    // Deposit final height H∞/L0. LSP Eq. (3.2): H∞/L0 ≃ λ3·a (a<a0) / λ4·a^α
+    // (a>a0). At a=2 the cited fits span λ4·a^α from the LSP continuum
+    // (λ4≃0.65, α≃0.35 → 0.83) up to the Lube-experiment branch (λ4≃1, α≃0.4 →
+    // 1.32); with SPH resolution scatter we accept H∞/L0 ∈ [0.8, 1.7].
+    let hinf_n = h_max / R0; // H∞/L0
+    let (hinf_lo, hinf_hi) = (0.8, 1.7);
 
     println!("\n=== column_collapse result ===");
-    println!("fluid particles: {n_fluid}");
+    println!("fluid particles: {n_fluid}   aspect ratio a = H0/L0 = {a:.2}");
     println!("runout toe (h≥{H_TOE}): {toe:.4} m   front reach (max|x|): {front_reach:.4} m");
-    println!("spread (toe−r0)/r0: {spread:.2}   (Lube ~{lube:.2} for a=2)");
+    println!(
+        "normalized runout (L∞−L0)/L0: {runout_n:.2}   \
+         (Lube/Lajeunesse @a=2: [{runout_lo:.2}, {runout_hi:.2}], LSP 2011 Eq.3.1)"
+    );
+    println!(
+        "normalized height  H∞/L0:     {hinf_n:.2}   (LSP 2011 Eq.3.2 @a=2: [{hinf_lo:.2}, {hinf_hi:.2}])"
+    );
     println!("deposit height:   h(0)={:.4}  h(.5r∞)={:.4}  h(.8r∞)={:.4}  h_max={h_max:.4}",
         h_at(0.0), h_at(0.5), h_at(0.8));
     println!("max fluid speed:  {max_speed:.3e} m/s");
     println!("max granular T:   {max_t:.3e} m²/s²  (seed was 1e-5 → grew where it sheared)");
     println!("OVITO frames:     <output>/dump/*.lammpstrj");
 
-    // Acceptance (v0, lenient): it collapsed/spread, did not blow up, and the
-    // seeded temperature stayed bounded (didn't run away).
-    let collapsed = spread > 0.5;
+    // Numeric acceptance vs the cited references: run-out AND deposit height fall
+    // in the experimental 2-D envelope, the flow arrested (did not blow up), and
+    // the seeded granular temperature stayed bounded (no runaway).
+    let runout_ok = (runout_lo..=runout_hi).contains(&runout_n);
+    let height_ok = (hinf_lo..=hinf_hi).contains(&hinf_n);
+    let arrested = max_speed < 1.0; // deposit at rest (<< sound speed ~50 m/s)
     let bounded = max_speed < 5.0 && max_t < 1.0;
-    if collapsed && bounded {
-        println!("PASS: column collapsed and spread into a deposit");
+    if runout_ok && height_ok && arrested && bounded {
+        println!(
+            "PASS: run-out {runout_n:.2} and height {hinf_n:.2} match the Lube 2005 / LSP 2011\n\
+             2-D column-collapse scalings; deposit arrested and bounded"
+        );
     } else {
-        eprintln!("FAIL: collapsed={collapsed} (spread {spread:.2}), bounded={bounded} (vmax {max_speed:.2e}, Tmax {max_t:.2e})");
+        eprintln!(
+            "FAIL: runout_ok={runout_ok} ({runout_n:.2} want [{runout_lo:.2},{runout_hi:.2}]), \
+             height_ok={height_ok} ({hinf_n:.2} want [{hinf_lo:.2},{hinf_hi:.2}]), \
+             arrested={arrested} (vmax {max_speed:.2e}), bounded={bounded} (Tmax {max_t:.2e})"
+        );
         std::process::exit(1);
     }
 }

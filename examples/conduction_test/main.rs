@@ -1,4 +1,8 @@
-//! Conduction operator test — validates the SPH Laplacian for `∇·(κ∇T)`.
+//! DEMO (not a validation) — self-consistent operator unit check, excluded from
+//! the dev_sph validation set (see validation/README.md). It checks the SPH
+//! Laplacian against its own analytic form, not an independent reference.
+//!
+//! Conduction operator test — checks the SPH Laplacian for `∇·(κ∇T)`.
 //!
 //! Impose `T(x) = T0(1 + A sin(2πx/Lx))`, run one step, and check the gathered
 //! conduction term `lap_t` matches the analytical `∇·(κ∇T) = κ ∇²T = −κ k² (T−T0)`

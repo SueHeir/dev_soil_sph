@@ -1,3 +1,7 @@
+//! DEMO (not a validation) — machinery showcase, excluded from the dev_sph
+//! validation set (see validation/README.md). Load-bearing seed for the future
+//! SPH-CFD plume-surface coupling; no independent oracle yet.
+//!
 //! Footpad (foundation) — a driven rigid plate penetrating a granular bed.
 //!
 //! Validates the moving-rigid-boundary + reaction-force machinery: the plate is

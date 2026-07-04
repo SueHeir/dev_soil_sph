@@ -1,3 +1,7 @@
+//! DEMO (not a validation) — qualitative transient showcase, excluded from the
+//! dev_sph validation set (see validation/README.md). Load-bearing seed for the
+//! future SPH-CFD plume-surface coupling; no independent oracle yet.
+//!
 //! De-fluidization — the landing-relevant transient (`physics-design.md` §11).
 //!
 //! A hot, dilated bed (Φ < Φ_c, so the contact branch is off) is held up purely by
