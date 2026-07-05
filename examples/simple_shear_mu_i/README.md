@@ -46,10 +46,24 @@ The target constants are fixed by the citation; the test does not adjust them.
   numerical artifact — the return map's weak dependence on the dimensionless
   elastic stiffness `G/p`, an O(few×10⁻³) effect — not to the answer.
 
+## Result
+
+![Measured-vs-reference μ(I) recovery](plots/mu_i_recovery.png)
+
+Measured return-map stress ratios follow the Jop/GDR MiDi target curve inside
+the `5×10⁻³` pointwise residual band; the fitted parameters stay inside the
+±2% pass band (PASS).
+
 ## Run
 
 ```sh
 cargo run --release --example simple_shear_mu_i
+```
+
+Regenerate the committed figure with:
+
+```sh
+$BENCH_PYTHON examples/simple_shear_mu_i/sweep.py
 ```
 
 Exit 0 = PASS, nonzero = FAIL. Latest recovery: fitted
