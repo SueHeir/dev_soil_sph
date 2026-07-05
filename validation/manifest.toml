@@ -1,4 +1,4 @@
-# MUD (dev_sph) validation set — DECLARATIVE manifest.
+# dev_soil_sph (dev_sph) validation set — DECLARATIVE manifest.
 #
 # This file is DATA, not a script: it declares which checked-in examples are
 # skeptic-facing VALIDATIONS (numeric pass/fail against an external reference)
@@ -10,7 +10,7 @@
 [set]
 name = "dev_sph-validation"
 tier = "dev_sph"
-description = "Skeptic-facing validation of the MUD granular-SPH μ(I)/KT continuum."
+description = "Skeptic-facing validation of the dev_soil_sph granular-SPH μ(I)/KT continuum."
 
 # ── VALIDATIONS ──────────────────────────────────────────────────────────────
 # Each recovers an INDEPENDENT reference (experiment or a different continuum/DEM

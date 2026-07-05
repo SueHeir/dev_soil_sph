@@ -208,14 +208,14 @@ $$\frac{DT}{Dt} = \underbrace{\mathcal{P}}_{\text{production}} - \underbrace{\Ga
 
 ### 11.3 dev_soil_sph code impact (modular)
 
-- **New `MudAtom` column** `temperature` (`#[forward]` — neighbors read `T` for the
+- **New `SphAtom` column** `temperature` (`#[forward]` — neighbors read `T` for the
   conduction Laplacian and for their `σ_KT`), plus a `#[zero]` accumulator for the
   conduction gather. `T` is persistent state, integrated by §11.2.
 - **One new neighbor pass** (conduction Laplacian) + **one per-particle T
   integration** (production − dissipation + conduction), slotted into `PreForce`
   between the density pass and the constitutive update. `T` joins the forwarded
   columns at the mid-step halo.
-- **`mud_constitutive::update_stress` becomes two-branch** — `σ_KT(T,Φ) +
+- **`sph_constitutive::update_stress` becomes two-branch** — `σ_KT(T,Φ) +
   σ_contact(Φ)` — behind the same pure-function interface (the architecture's payoff:
   this swap touches only the constitutive crate + adds the T systems).
 

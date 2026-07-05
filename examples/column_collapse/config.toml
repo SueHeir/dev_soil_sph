@@ -28,8 +28,8 @@ gx = 0.0
 gy = 0.0
 gz = -9.81
 
-[mud]
-[[mud.materials]]
+[sph]
+[[sph.materials]]
 name = "glass"
 mu_s = 0.38
 mu_2 = 0.64
@@ -42,7 +42,7 @@ d = 0.5e-3
 restitution = 0.7
 
 # Frozen floor: 3 layers across the run-out span.
-[[mud.insert]]
+[[sph.insert]]
 material = "glass"
 region_min = [-0.13, 0.0, -0.015]
 region_max = [0.13, 0.015, 0.0]
@@ -52,7 +52,7 @@ frozen = true
 # The column: half-width r0 = 0.025, height H0 = 0.05 → aspect ratio a = 2.
 # Seed a tiny granular temperature so production can bootstrap off the T=0 fixed
 # point: T lights up where the column shears/flows, decays in the static core.
-[[mud.insert]]
+[[sph.insert]]
 material = "glass"
 region_min = [-0.025, 0.0, 0.0]
 region_max = [0.025, 0.015, 0.05]

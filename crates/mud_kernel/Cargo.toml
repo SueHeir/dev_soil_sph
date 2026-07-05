@@ -1,8 +1,0 @@
-[package]
-name = "mud_kernel"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
-description = "MUD — Wendland smoothing kernels for SPH (W, grad W). Pure, substrate-free."
-
-[dependencies]

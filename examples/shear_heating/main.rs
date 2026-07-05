@@ -1,6 +1,6 @@
 //! DEMO (not a validation) — self-consistent showcase, excluded from the dev_sph
 //! validation set (see validation/README.md). Its PASS/FAIL is a smoke check
-//! against MUD itself, not an independent reference.
+//! against dev_soil_sph itself, not an independent reference.
 //!
 //! Shear heating — end-to-end demo of the KT shear-production term.
 //!
@@ -13,7 +13,7 @@
 //! Run:
 //!   cargo run --release --example shear_heating -- examples/shear_heating/config.toml
 
-use mud_core::prelude::*;
+use sph_core::prelude::*;
 use soil_deform::DeformPlugin;
 
 const GAMMA_DOT: f64 = 50.0; // must match [deform] xy rate
@@ -21,14 +21,14 @@ const GAMMA_DOT: f64 = 50.0; // must match [deform] xy rate
 fn main() {
     let mut app = App::new();
     app.add_plugins(CorePlugins)
-        .add_plugins(MudDefaultPlugins)
+        .add_plugins(SphDefaultPlugins)
         .add_plugins(DeformPlugin);
     app.start();
 
     let atoms = app.get_resource_ref::<Atom>().expect("Atom");
     let registry = app.get_resource_ref::<AtomDataRegistry>().expect("registry");
-    let sph = registry.expect::<MudAtom>("shear post-check");
-    let table = app.get_resource_ref::<MudMaterialTable>().expect("materials");
+    let sph = registry.expect::<SphAtom>("shear post-check");
+    let table = app.get_resource_ref::<SphMaterialTable>().expect("materials");
     let n = atoms.nlocal as usize;
     let mat = &table.params[0];
 

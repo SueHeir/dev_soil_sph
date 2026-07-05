@@ -30,8 +30,8 @@ gx = 0.0
 gy = 0.0
 gz = -9.81
 
-[mud]
-[[mud.materials]]
+[sph]
+[[sph.materials]]
 name = "glass"
 mu_s = 0.38
 mu_2 = 0.64
@@ -44,7 +44,7 @@ d = 0.5e-3
 restitution = 0.7
 
 # Frozen floor.
-[[mud.insert]]
+[[sph.insert]]
 material = "glass"
 region_min = [-0.06, 0.0, -0.015]
 region_max = [0.06, 0.015, 0.0]
@@ -52,7 +52,7 @@ spacing = 0.005
 frozen = true
 
 # The granular bed.
-[[mud.insert]]
+[[sph.insert]]
 material = "glass"
 region_min = [-0.06, 0.0, 0.0]
 region_max = [0.06, 0.015, 0.05]
@@ -61,7 +61,7 @@ rest_density = 1500.0
 
 # The footpad: a rigid plate (3 layers thick, half-width 0.02) driven straight
 # down at 0.05 m/s. Sits just above the bed surface at t=0.
-[[mud.insert]]
+[[sph.insert]]
 material = "glass"
 region_min = [-0.02, 0.0, 0.05]
 region_max = [0.02, 0.015, 0.065]

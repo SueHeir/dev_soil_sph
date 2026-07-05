@@ -1,7 +1,7 @@
 # `simple_shear_mu_i` — μ(I) flow-law recovery (return-map element test)
 
 An **isolation** validation of the Dunatunga–Kamrin / μ(I) Drucker–Prager stress
-update ([`mud_constitutive::update_stress`]). No SPH neighbors, no `App`, no
+update ([`sph_constitutive::update_stress`]). No SPH neighbors, no `App`, no
 substrate — just the constitutive update driven by a homogeneous simple-shear
 velocity gradient. It answers one question: *does the return map, in a
 controlled homogeneous flow, reproduce the μ(I) inertial rheology it is built

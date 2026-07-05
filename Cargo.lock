@@ -124,65 +124,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "88904434abc2901f197fe8cc55f0445e7ded921dba5911dad2e2b39b48e663c4"
 
 [[package]]
-name = "mud"
-version = "0.1.0"
-dependencies = [
- "mud_constitutive",
- "mud_core",
- "soil_deform",
-]
-
-[[package]]
-name = "mud_atom"
-version = "0.1.0"
-dependencies = [
- "grass_app",
- "grass_scheduler",
- "mud_constitutive",
- "serde",
- "soil_core",
- "soil_derive",
-]
-
-[[package]]
-name = "mud_constitutive"
-version = "0.1.0"
-
-[[package]]
-name = "mud_core"
-version = "0.1.0"
-dependencies = [
- "grass_app",
- "grass_derive",
- "grass_scheduler",
- "mud_atom",
- "mud_constitutive",
- "mud_kernel",
- "mud_physics",
- "soil_core",
- "soil_derive",
- "soil_print",
- "soil_verlet",
-]
-
-[[package]]
-name = "mud_kernel"
-version = "0.1.0"
-
-[[package]]
-name = "mud_physics"
-version = "0.1.0"
-dependencies = [
- "grass_app",
- "grass_scheduler",
- "mud_atom",
- "mud_constitutive",
- "mud_kernel",
- "serde",
- "soil_core",
-]
-
-[[package]]
 name = "ppv-lite86"
 version = "0.2.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -348,6 +289,65 @@ dependencies = [
  "grass_app",
  "grass_scheduler",
  "soil_core",
+]
+
+[[package]]
+name = "sph"
+version = "0.1.0"
+dependencies = [
+ "soil_deform",
+ "sph_constitutive",
+ "sph_core",
+]
+
+[[package]]
+name = "sph_atom"
+version = "0.1.0"
+dependencies = [
+ "grass_app",
+ "grass_scheduler",
+ "serde",
+ "soil_core",
+ "soil_derive",
+ "sph_constitutive",
+]
+
+[[package]]
+name = "sph_constitutive"
+version = "0.1.0"
+
+[[package]]
+name = "sph_core"
+version = "0.1.0"
+dependencies = [
+ "grass_app",
+ "grass_derive",
+ "grass_scheduler",
+ "soil_core",
+ "soil_derive",
+ "soil_print",
+ "soil_verlet",
+ "sph_atom",
+ "sph_constitutive",
+ "sph_kernel",
+ "sph_physics",
+]
+
+[[package]]
+name = "sph_kernel"
+version = "0.1.0"
+
+[[package]]
+name = "sph_physics"
+version = "0.1.0"
+dependencies = [
+ "grass_app",
+ "grass_scheduler",
+ "serde",
+ "soil_core",
+ "sph_atom",
+ "sph_constitutive",
+ "sph_kernel",
 ]
 
 [[package]]

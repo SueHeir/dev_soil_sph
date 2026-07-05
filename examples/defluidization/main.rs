@@ -15,7 +15,7 @@
 //!   cargo run --release --example defluidization -- examples/defluidization/config.toml
 //! Then open examples/defluidization/dump/ in OVITO (color by temperature / density).
 
-use mud_core::prelude::*;
+use sph_core::prelude::*;
 
 const T0: f64 = 0.05; // initial granular temperature
 const RHO0: f64 = 1375.0; // initial bed density (Φ = 0.55)
@@ -24,22 +24,22 @@ const RHO_C: f64 = 1500.0; // contact-branch onset
 fn main() {
     let mut app = App::new();
     app.add_plugins(CorePlugins)
-        .add_plugins(MudDefaultPlugins)
-        .add_plugins(MudGravityPlugin);
+        .add_plugins(SphDefaultPlugins)
+        .add_plugins(SphGravityPlugin);
 
     {
         let dump = app.get_resource_ref::<DumpRegistry>().expect("DumpRegistry");
         dump.register_scalar("density", |a, r| {
-            r.expect::<MudAtom>("d").density[..a.nlocal as usize].to_vec()
+            r.expect::<SphAtom>("d").density[..a.nlocal as usize].to_vec()
         });
         dump.register_scalar("temperature", |a, r| {
-            r.expect::<MudAtom>("d").temperature[..a.nlocal as usize].to_vec()
+            r.expect::<SphAtom>("d").temperature[..a.nlocal as usize].to_vec()
         });
         dump.register_scalar("pressure", |a, r| {
-            r.expect::<MudAtom>("d").pressure[..a.nlocal as usize].to_vec()
+            r.expect::<SphAtom>("d").pressure[..a.nlocal as usize].to_vec()
         });
         dump.register_scalar("is_boundary", |a, r| {
-            r.expect::<MudAtom>("d").is_boundary[..a.nlocal as usize].to_vec()
+            r.expect::<SphAtom>("d").is_boundary[..a.nlocal as usize].to_vec()
         });
     }
 
@@ -47,7 +47,7 @@ fn main() {
 
     let atoms = app.get_resource_ref::<Atom>().expect("Atom");
     let registry = app.get_resource_ref::<AtomDataRegistry>().expect("registry");
-    let sph = registry.expect::<MudAtom>("defluidization");
+    let sph = registry.expect::<SphAtom>("defluidization");
     let n = atoms.nlocal as usize;
 
     let mut sum_t = 0.0;

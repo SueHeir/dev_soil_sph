@@ -1,16 +1,16 @@
-//! # mud_physics — the per-step SPH pipeline
+//! # sph_physics — the per-step SPH pipeline
 //!
-//! The MUD physics tier's per-timestep work, riding the SOIL substrate. Unlike
+//! The dev_soil_sph physics tier's per-timestep work, riding the SOIL substrate. Unlike
 //! DEM's single pairwise-contact pass, SPH needs **two neighbor passes** with a
 //! per-particle constitutive update and a halo exchange between them
 //! (`docs/architecture.md` §4):
 //!
 //! ```text
-//! PreForce: mud_density_velgrad   (gather: dρ/dt and L = ∇v from neighbors)
-//!         → mud_integrate_density (ρ += dρ/dt · dt)
-//!         → mud_constitutive_update (p = EOS(ρ); μ(I) return map → dev_stress)
+//! PreForce: sph_density_velgrad   (gather: dρ/dt and L = ∇v from neighbors)
+//!         → sph_integrate_density (ρ += dρ/dt · dt)
+//!         → sph_constitutive_update (p = EOS(ρ); μ(I) return map → dev_stress)
 //!         → forward_comm_borders   ★ push fresh ρ, p, σ to ghosts
-//! Force  : mud_momentum           (gather: dv/dt = Σ mⱼ(σᵢ/ρᵢ² + σⱼ/ρⱼ²)·∇W)
+//! Force  : sph_momentum           (gather: dv/dt = Σ mⱼ(σᵢ/ρᵢ² + σⱼ/ρⱼ²)·∇W)
 //! ```
 //!
 //! ## Gather formulation
@@ -36,11 +36,11 @@ use soil_core::{
     RunConfig, ScheduleSetupSet,
 };
 
-use mud_atom::{MudAtom, MudAtomPlugin, MudMaterialTable};
-use mud_constitutive::{
+use sph_atom::{SphAtom, SphAtomPlugin, SphMaterialTable};
+use sph_constitutive::{
     kt_conductivity, kt_cooling_rate, kt_production_rate, two_branch_stress,
 };
-use mud_kernel::Kernel;
+use sph_kernel::Kernel;
 
 /// Spatial dimension of the kernel (v0: 3D).
 const KERNEL: Kernel = Kernel::Dim3;
@@ -50,7 +50,7 @@ const KERNEL: Kernel = Kernel::Dim3;
 /// Reconstruct the full Cauchy stress `σ = −p I + s` (as a `Sym3` `[xx,yy,zz,xy,xz,yz]`)
 /// for particle `k` from its stored pressure and deviatoric stress.
 #[inline]
-fn sigma(sph: &MudAtom, k: usize) -> [f64; 6] {
+fn sigma(sph: &SphAtom, k: usize) -> [f64; 6] {
     let p = sph.pressure[k];
     let s = sph.dev_stress[k];
     [s[0] - p, s[1] - p, s[2] - p, s[3], s[4], s[5]]
@@ -71,12 +71,12 @@ fn sym3_mat_vec(a: &[f64; 6], g: &[f64; 3]) -> [f64; 3] {
 /// Gather pass: for each owner `i`, accumulate the continuity density rate
 /// `dρ/dt_i = Σⱼ mⱼ (vᵢ − vⱼ)·∇Wᵢⱼ` and the velocity gradient
 /// `Lᵢ = Σⱼ (mⱼ/ρⱼ)(vⱼ − vᵢ) ⊗ ∇Wᵢⱼ`. Both accumulators are zeroed by SOIL each step.
-pub fn mud_density_velgrad(atoms: Res<Atom>, neighbor: Res<Neighbor>, registry: Res<AtomDataRegistry>) {
+pub fn sph_density_velgrad(atoms: Res<Atom>, neighbor: Res<Neighbor>, registry: Res<AtomDataRegistry>) {
     assert!(
         !neighbor.newton,
-        "MUD uses a gather formulation; set [neighbor] newton = false"
+        "dev_soil_sph uses a gather formulation; set [neighbor] newton = false"
     );
-    let mut sph = registry.expect_mut::<MudAtom>("mud_density_velgrad");
+    let mut sph = registry.expect_mut::<SphAtom>("sph_density_velgrad");
     let nlocal = atoms.nlocal as usize;
 
     for (i, j) in neighbor.pairs(nlocal) {
@@ -112,8 +112,8 @@ pub fn mud_density_velgrad(atoms: Res<Atom>, neighbor: Res<Neighbor>, registry: 
 // ── Density integration (PreForce, after pass 1) ─────────────────────────────
 
 /// Integrate the continuity density: `ρ_i += dρ/dt_i · dt`.
-pub fn mud_integrate_density(atoms: Res<Atom>, registry: Res<AtomDataRegistry>) {
-    let mut sph = registry.expect_mut::<MudAtom>("mud_integrate_density");
+pub fn sph_integrate_density(atoms: Res<Atom>, registry: Res<AtomDataRegistry>) {
+    let mut sph = registry.expect_mut::<SphAtom>("sph_integrate_density");
     let dt = atoms.dt;
     for i in 0..atoms.nlocal as usize {
         sph.density[i] += sph.drho_dt[i] * dt;
@@ -127,8 +127,8 @@ pub fn mud_integrate_density(atoms: Res<Atom>, registry: Res<AtomDataRegistry>) 
 /// `∇·(κ∇T)_i = Σⱼ (mⱼ/ρⱼ)(κᵢ+κⱼ)(Tᵢ−Tⱼ)(rᵢⱼ·∇Wᵢⱼ)/(‖rᵢⱼ‖²+εh²)`.
 /// Reduces to `κ∇²T` for uniform κ; the sign diffuses heat hot→cold. κ uses the
 /// owner's material (base `atom_type` isn't forwarded — single-material v0).
-pub fn mud_conduction(atoms: Res<Atom>, neighbor: Res<Neighbor>, registry: Res<AtomDataRegistry>, table: Res<MudMaterialTable>) {
-    let mut sph = registry.expect_mut::<MudAtom>("mud_conduction");
+pub fn sph_conduction(atoms: Res<Atom>, neighbor: Res<Neighbor>, registry: Res<AtomDataRegistry>, table: Res<SphMaterialTable>) {
+    let mut sph = registry.expect_mut::<SphAtom>("sph_conduction");
     let nlocal = atoms.nlocal as usize;
     for (i, j) in neighbor.pairs(nlocal) {
         let ti = sph.temperature[i];
@@ -163,12 +163,12 @@ pub fn mud_conduction(atoms: Res<Atom>, neighbor: Res<Neighbor>, registry: Res<A
 /// the **homogeneous** balance `dT/dt = −Γ` (inelastic collisional cooling →
 /// Haff's law). Production (`σ_KT : D`) and conduction (`∇·κ∇T`) are later
 /// increments — flagged below. Per-particle; clamps `T ≥ 0`.
-pub fn mud_temperature_update(
+pub fn sph_temperature_update(
     atoms: Res<Atom>,
     registry: Res<AtomDataRegistry>,
-    table: Res<MudMaterialTable>,
+    table: Res<SphMaterialTable>,
 ) {
-    let mut sph = registry.expect_mut::<MudAtom>("mud_temperature_update");
+    let mut sph = registry.expect_mut::<SphAtom>("sph_temperature_update");
     let dt = atoms.dt;
     for i in 0..atoms.nlocal as usize {
         let mat = &table.params[atoms.atom_type[i] as usize];
@@ -185,13 +185,13 @@ pub fn mud_temperature_update(
 // ── Constitutive update (PreForce, after integration) ────────────────────────
 
 /// Per-particle stress update: `p = EOS(ρ)` and the μ(I) return map evolving the
-/// deviatoric stress (delegates to `mud_constitutive::update_stress`).
-pub fn mud_constitutive_update(
+/// deviatoric stress (delegates to `sph_constitutive::update_stress`).
+pub fn sph_constitutive_update(
     atoms: Res<Atom>,
     registry: Res<AtomDataRegistry>,
-    table: Res<MudMaterialTable>,
+    table: Res<SphMaterialTable>,
 ) {
-    let mut sph = registry.expect_mut::<MudAtom>("mud_constitutive_update");
+    let mut sph = registry.expect_mut::<SphAtom>("sph_constitutive_update");
     let dt = atoms.dt;
     for i in 0..atoms.nlocal as usize {
         let mat = &table.params[atoms.atom_type[i] as usize];
@@ -217,13 +217,13 @@ const AV_BETA: f64 = 2.0;
 /// Gather pass: stress-divergence force plus Monaghan artificial viscosity.
 /// For each owner `i`,
 /// `force_i += Σⱼ mᵢ mⱼ (σᵢ/ρᵢ² + σⱼ/ρⱼ² − Πᵢⱼ I)·∇Wᵢⱼ`. Gravity is added separately.
-pub fn mud_momentum(
+pub fn sph_momentum(
     mut atoms: ResMut<Atom>,
     neighbor: Res<Neighbor>,
     registry: Res<AtomDataRegistry>,
-    table: Res<MudMaterialTable>,
+    table: Res<SphMaterialTable>,
 ) {
-    let sph = registry.expect::<MudAtom>("mud_momentum");
+    let sph = registry.expect::<SphAtom>("sph_momentum");
     let nlocal = atoms.nlocal as usize;
 
     for (i, j) in neighbor.pairs(nlocal) {
@@ -294,17 +294,17 @@ struct GravityConfig {
 }
 
 /// The gravity acceleration vector resource.
-pub struct MudGravity {
+pub struct SphGravity {
     pub g: [f64; 3],
 }
 
 /// Adds the gravity body force `m·g` to each particle, at the Force phase.
-pub fn mud_gravity(
+pub fn sph_gravity(
     mut atoms: ResMut<Atom>,
-    gravity: Res<MudGravity>,
+    gravity: Res<SphGravity>,
     registry: Res<AtomDataRegistry>,
 ) {
-    let sph = registry.expect::<MudAtom>("mud_gravity");
+    let sph = registry.expect::<SphAtom>("sph_gravity");
     let g = gravity.g;
     for i in 0..atoms.nlocal as usize {
         // Skip boundary particles (floor/footpad are rigid; their weight is held
@@ -320,30 +320,30 @@ pub fn mud_gravity(
 }
 
 /// Registers the gravity body force from `[gravity]` (gx, gy, gz).
-pub struct MudGravityPlugin;
+pub struct SphGravityPlugin;
 
-impl Plugin for MudGravityPlugin {
+impl Plugin for SphGravityPlugin {
     fn default_config(&self) -> Option<&str> {
         Some("[gravity]\ngx = 0.0\ngy = 0.0\ngz = -9.81")
     }
 
     fn build(&self, app: &mut App) {
         let cfg = Config::load::<GravityConfig>(app, "gravity");
-        app.add_resource(MudGravity {
+        app.add_resource(SphGravity {
             g: [cfg.gx, cfg.gy, cfg.gz],
         });
-        app.add_update_system(mud_gravity.label("mud_gravity"), ParticleSimScheduleSet::Force);
+        app.add_update_system(sph_gravity.label("sph_gravity"), ParticleSimScheduleSet::Force);
     }
 }
 
 // ── Boundary freeze ──────────────────────────────────────────────────────────
 
 /// Net reaction of the bed on the **driven** rigid boundary (footpad), plus its
-/// mean height — updated each step by [`mud_freeze_boundary`]. `force` is the
+/// mean height — updated each step by [`sph_freeze_boundary`]. `force` is the
 /// SPH bed force (gravity excluded); `z` is the footpad's mean height (sinkage =
 /// initial − current).
 #[derive(Default, Clone, Copy)]
-pub struct MudPlateForce {
+pub struct SphPlateForce {
     pub force: [f64; 3],
     pub z: f64,
     pub n: usize,
@@ -353,14 +353,14 @@ pub struct MudPlateForce {
 /// — `[0,0,0]` static floor/wall, or a driven footpad velocity) and zero its
 /// force, so it moves rigidly while still participating in the SPH sums. For the
 /// **driven** set, first accumulate the net bed reaction (the force the bed exerts
-/// before it is zeroed) into [`MudPlateForce`]. Runs at PostForce, after all force
+/// before it is zeroed) into [`SphPlateForce`]. Runs at PostForce, after all force
 /// contributions. No-op when there are no boundary particles.
-pub fn mud_freeze_boundary(
+pub fn sph_freeze_boundary(
     mut atoms: ResMut<Atom>,
     registry: Res<AtomDataRegistry>,
-    mut plate: ResMut<MudPlateForce>,
+    mut plate: ResMut<SphPlateForce>,
 ) {
-    let sph = registry.expect::<MudAtom>("mud_freeze_boundary");
+    let sph = registry.expect::<SphAtom>("sph_freeze_boundary");
     let mut fsum = [0.0f64; 3];
     let mut zsum = 0.0f64;
     let mut npl = 0usize;
@@ -382,72 +382,72 @@ pub fn mud_freeze_boundary(
         atoms.vel[i] = bv; // pin to prescribed velocity (static or driven)
     }
     if npl > 0 {
-        *plate = MudPlateForce { force: fsum, z: zsum / npl as f64, n: npl };
+        *plate = SphPlateForce { force: fsum, z: zsum / npl as f64, n: npl };
     }
 }
 
 /// Copy the `[[run]] dt` into `Atom::dt` (the Verlet integrator reads `Atom::dt`,
 /// which otherwise defaults to 1.0 — a catastrophic CFL violation). Mirrors POND's
 /// `set_timestep` / DIRT's `calculate_delta_time`.
-fn mud_set_timestep(mut atoms: ResMut<Atom>, run_config: Res<RunConfig>) {
+fn sph_set_timestep(mut atoms: ResMut<Atom>, run_config: Res<RunConfig>) {
     let dt = run_config.current_stage(0).dt;
     if dt > 0.0 {
         atoms.dt = dt;
     }
 }
 
-/// Registers the MUD per-step SPH systems in their schedule phases.
-pub struct MudPhysicsPlugin;
+/// Registers the dev_soil_sph per-step SPH systems in their schedule phases.
+pub struct SphPhysicsPlugin;
 
-impl Plugin for MudPhysicsPlugin {
+impl Plugin for SphPhysicsPlugin {
     fn dependencies(&self) -> Vec<std::any::TypeId> {
-        grass_app::type_ids![MudAtomPlugin]
+        grass_app::type_ids![SphAtomPlugin]
     }
 
     fn provides(&self) -> Vec<&str> {
-        vec!["mud_forces"]
+        vec!["sph_forces"]
     }
 
     fn requires(&self) -> Vec<&str> {
-        vec!["mud_particles", "neighbor_list"]
+        vec!["sph_particles", "neighbor_list"]
     }
 
     fn build(&self, app: &mut App) {
-        app.add_setup_system(mud_set_timestep, ScheduleSetupSet::PostSetup);
-        app.add_resource(MudPlateForce::default());
+        app.add_setup_system(sph_set_timestep, ScheduleSetupSet::PostSetup);
+        app.add_resource(SphPlateForce::default());
         app.add_update_system(
-            mud_density_velgrad.label("mud_density"),
+            sph_density_velgrad.label("sph_density"),
             ParticleSimScheduleSet::PreForce,
         )
         .add_update_system(
-            mud_integrate_density.label("mud_integ_rho").after("mud_density"),
+            sph_integrate_density.label("sph_integ_rho").after("sph_density"),
             ParticleSimScheduleSet::PreForce,
         )
         .add_update_system(
-            mud_conduction.label("mud_conduction").after("mud_integ_rho"),
+            sph_conduction.label("sph_conduction").after("sph_integ_rho"),
             ParticleSimScheduleSet::PreForce,
         )
         .add_update_system(
-            mud_temperature_update.label("mud_temp").after("mud_conduction"),
+            sph_temperature_update.label("sph_temp").after("sph_conduction"),
             ParticleSimScheduleSet::PreForce,
         )
         .add_update_system(
-            mud_constitutive_update.label("mud_const").after("mud_temp"),
+            sph_constitutive_update.label("sph_const").after("sph_temp"),
             ParticleSimScheduleSet::PreForce,
         )
         // ★ mid-step halo: push freshly-computed ρ, p, σ to ghosts before the
         // momentum pass reads them (soil_core::forward_comm_borders, re-registered
         // here in addition to its PreNeighbor registration).
         .add_update_system(
-            forward_comm_borders.label("mud_halo").after("mud_const"),
+            forward_comm_borders.label("sph_halo").after("sph_const"),
             ParticleSimScheduleSet::PreForce,
         )
         .add_update_system(
-            mud_momentum.label("mud_force"),
+            sph_momentum.label("sph_force"),
             ParticleSimScheduleSet::Force,
         )
         .add_update_system(
-            mud_freeze_boundary.label("mud_freeze"),
+            sph_freeze_boundary.label("sph_freeze"),
             ParticleSimScheduleSet::PostForce,
         );
     }
@@ -467,7 +467,7 @@ mod tests {
 
     #[test]
     fn sigma_reconstructs_minus_p_i_plus_s() {
-        let mut sph = MudAtom::new();
+        let mut sph = SphAtom::new();
         sph.pressure.push(10.0);
         sph.dev_stress.push([1.0, 2.0, 3.0, 0.5, 0.6, 0.7]);
         // σ_xx = s_xx − p = 1 − 10 = −9; off-diagonals unchanged

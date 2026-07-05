@@ -9,13 +9,13 @@
 //! Run:
 //!   cargo run --release --example hydrostatic_column -- examples/hydrostatic_column/config.toml
 
-use mud_core::prelude::*;
+use sph_core::prelude::*;
 
 fn main() {
     let mut app = App::new();
     app.add_plugins(CorePlugins)
-        .add_plugins(MudDefaultPlugins)
-        .add_plugins(MudGravityPlugin);
+        .add_plugins(SphDefaultPlugins)
+        .add_plugins(SphGravityPlugin);
     app.start();
 
     // ── Analyze the settled fluid column ─────────────────────────────────────
@@ -23,7 +23,7 @@ fn main() {
     let registry = app
         .get_resource_ref::<AtomDataRegistry>()
         .expect("registry");
-    let sph = registry.expect::<MudAtom>("hydrostatic post-check");
+    let sph = registry.expect::<SphAtom>("hydrostatic post-check");
     let n = atoms.nlocal as usize;
 
     const G: f64 = 9.81;

@@ -24,8 +24,8 @@ newton = false
 skin_fraction = 1.2
 bin_size = 0.01
 
-[mud]
-[[mud.materials]]
+[sph]
+[[sph.materials]]
 name = "glass"
 mu_s = 0.38
 mu_2 = 0.64
@@ -37,7 +37,7 @@ poisson = 0.3
 d = 0.5e-3
 restitution = 0.7
 
-[[mud.insert]]
+[[sph.insert]]
 material = "glass"
 region_min = [0.0, 0.0, 0.0]
 region_max = [0.05, 0.015, 0.015]

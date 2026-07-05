@@ -1,15 +1,15 @@
 [package]
-name = "mud_physics"
+name = "sph_physics"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "MUD — the per-step SPH pipeline: density/velocity-gradient pass, constitutive update, momentum pass."
+description = "dev_soil_sph — the per-step SPH pipeline: density/velocity-gradient pass, constitutive update, momentum pass."
 
 [dependencies]
 soil_core = { git = "ssh://git@192.168.0.170:2222/SueHeir/soil.git", branch = "main", default-features = false }
 grass_app = { git = "ssh://git@192.168.0.170:2222/SueHeir/grass.git", branch = "main" }
 grass_scheduler = { git = "ssh://git@192.168.0.170:2222/SueHeir/grass.git", branch = "main" }
-mud_kernel = { path = "../mud_kernel" }
-mud_constitutive = { path = "../mud_constitutive" }
-mud_atom = { path = "../mud_atom" }
+sph_kernel = { path = "../sph_kernel" }
+sph_constitutive = { path = "../sph_constitutive" }
+sph_atom = { path = "../sph_atom" }
 serde = { version = "1", features = ["derive"] }
