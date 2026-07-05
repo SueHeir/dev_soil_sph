@@ -1,22 +1,22 @@
-//! # mud_atom — per-particle SPH data and granular material table
+//! # sph_atom — per-particle SPH data and granular material table
 //!
-//! The MUD physics tier's per-particle extension on the SOIL substrate, mirroring
+//! The dev_soil_sph physics tier's per-particle extension on the SOIL substrate, mirroring
 //! the role `dirt_atom` plays for DEM. Provides:
 //!
-//! - [`MudAtom`] — the per-particle SPH column (smoothing length, density,
+//! - [`SphAtom`] — the per-particle SPH column (smoothing length, density,
 //!   pressure, deviatoric stress, and the per-step accumulators), registered via
 //!   SOIL's `AtomData` derive. The `#[forward]`/`#[zero]` attributes encode the
 //!   communication contract (see `docs/architecture.md` §3).
-//! - [`MudMaterialTable`] — named granular materials, each a
-//!   [`mud_constitutive::MaterialParams`], loaded from `[[mud.materials]]`.
-//! - [`MudAtomPlugin`] — registers the column + material table.
+//! - [`SphMaterialTable`] — named granular materials, each a
+//!   [`sph_constitutive::MaterialParams`], loaded from `[[sph.materials]]`.
+//! - [`SphAtomPlugin`] — registers the column + material table.
 //!
 //! Insertion (`[[particles.insert]]`) is handled by SOIL/`dirt_atom`-style code
 //! and added in a later increment.
 //!
 //! ## TOML
 //! ```toml
-//! [[mud.materials]]
+//! [[sph.materials]]
 //! name = "glass"
 //! mu_s = 0.38
 //! mu_2 = 0.64
@@ -35,7 +35,7 @@ use soil_derive::AtomData;
 
 use soil_core::{register_atom_data, Atom, AtomData, AtomPlugin, Config, ScheduleSetupSet};
 
-use mud_constitutive::MaterialParams;
+use sph_constitutive::MaterialParams;
 
 pub mod insert;
 pub use insert::*;
@@ -50,7 +50,7 @@ pub use insert::*;
 /// - `#[zero]` — reset each step; the per-step neighbor-sum accumulators.
 /// - *(no attribute)* — migrates with the atom but never ghosts.
 #[derive(AtomData)]
-pub struct MudAtom {
+pub struct SphAtom {
     /// Smoothing length `h` (m). Neighbors need it to evaluate the kernel.
     #[forward]
     pub h: Vec<f64>,
@@ -103,16 +103,16 @@ pub struct MudAtom {
     pub boundary_vel: Vec<[f64; 3]>,
 }
 
-impl Default for MudAtom {
+impl Default for SphAtom {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl MudAtom {
+impl SphAtom {
     /// An empty column with no particles; data is appended at insertion.
     pub fn new() -> Self {
-        MudAtom {
+        SphAtom {
             h: Vec::new(),
             density: Vec::new(),
             pressure: Vec::new(),
@@ -131,10 +131,10 @@ impl MudAtom {
 
 // ── Material table ───────────────────────────────────────────────────────────
 
-/// A single granular material from `[[mud.materials]]`.
+/// A single granular material from `[[sph.materials]]`.
 #[derive(Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
-pub struct MudMaterialConfig {
+pub struct SphMaterialConfig {
     /// Material name, referenced by particle insert blocks.
     pub name: String,
     /// Static friction coefficient μ_s.
@@ -162,7 +162,7 @@ fn default_restitution() -> f64 {
     0.7
 }
 
-impl MudMaterialConfig {
+impl SphMaterialConfig {
     /// Convert to the constitutive [`MaterialParams`], deriving `G` from `K, ν`.
     pub fn to_params(&self) -> MaterialParams {
         MaterialParams {
@@ -179,11 +179,11 @@ impl MudMaterialConfig {
     }
 }
 
-/// A single lattice-fill insertion block from `[[mud.insert]]`.
+/// A single lattice-fill insertion block from `[[sph.insert]]`.
 #[derive(Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
-pub struct MudInsertConfig {
-    /// Material name (must match a `[[mud.materials]]` name).
+pub struct SphInsertConfig {
+    /// Material name (must match a `[[sph.materials]]` name).
     pub material: String,
     /// Lower corner of the fill block (m).
     pub region_min: [f64; 3],
@@ -213,30 +213,30 @@ pub struct MudInsertConfig {
     pub boundary_velocity: Option<[f64; 3]>,
 }
 
-/// The `[mud]` config section.
+/// The `[sph]` config section.
 #[derive(Deserialize, Clone, Default)]
 #[serde(deny_unknown_fields)]
-pub struct MudConfig {
+pub struct SphConfig {
     /// Granular material definitions.
     #[serde(default)]
-    pub materials: Option<Vec<MudMaterialConfig>>,
+    pub materials: Option<Vec<SphMaterialConfig>>,
     /// Particle insertion blocks.
     #[serde(default)]
-    pub insert: Option<Vec<MudInsertConfig>>,
+    pub insert: Option<Vec<SphInsertConfig>>,
 }
 
 /// Named granular materials, each resolved to constitutive [`MaterialParams`].
 ///
 /// Type index `i` (the SOIL `Atom::atom_type`) maps to `params[i]` / `names[i]`.
 #[derive(Default)]
-pub struct MudMaterialTable {
+pub struct SphMaterialTable {
     /// Material names, in type-index order.
     pub names: Vec<String>,
     /// Constitutive parameters, in type-index order.
     pub params: Vec<MaterialParams>,
 }
 
-impl MudMaterialTable {
+impl SphMaterialTable {
     /// An empty table.
     pub fn new() -> Self {
         Self::default()
@@ -258,19 +258,19 @@ impl MudMaterialTable {
 
 // ── Plugin ───────────────────────────────────────────────────────────────────
 
-/// Registers the [`MudAtom`] column and the [`MudMaterialTable`] from
-/// `[[mud.materials]]`.
-pub struct MudAtomPlugin;
+/// Registers the [`SphAtom`] column and the [`SphMaterialTable`] from
+/// `[[sph.materials]]`.
+pub struct SphAtomPlugin;
 
-impl Plugin for MudAtomPlugin {
+impl Plugin for SphAtomPlugin {
     fn provides(&self) -> Vec<&str> {
-        vec!["mud_particles"]
+        vec!["sph_particles"]
     }
 
     fn default_config(&self) -> Option<&str> {
         Some(
-            r#"# Granular material definitions for MUD (SPH) particles
-[[mud.materials]]
+            r#"# Granular material definitions for dev_soil_sph (SPH) particles
+[[sph.materials]]
 name = "glass"
 mu_s = 0.38
 mu_2 = 0.64
@@ -286,11 +286,11 @@ d = 0.5e-3"#,
     fn build(&self, app: &mut App) {
         app.add_plugins(AtomPlugin);
 
-        register_atom_data!(app, MudAtom::new());
+        register_atom_data!(app, SphAtom::new());
 
-        let cfg = Config::load::<MudConfig>(app, "mud");
+        let cfg = Config::load::<SphConfig>(app, "sph");
 
-        let mut table = MudMaterialTable::new();
+        let mut table = SphMaterialTable::new();
         if let Some(ref materials) = cfg.materials {
             for mat in materials {
                 table.add(&mat.name, mat.to_params());
@@ -303,7 +303,7 @@ d = 0.5e-3"#,
 }
 
 /// Setup system: set `Atom::ntypes` from the number of registered materials.
-fn set_mud_ntypes(mut atoms: ResMut<Atom>, table: Res<MudMaterialTable>) {
+fn set_mud_ntypes(mut atoms: ResMut<Atom>, table: Res<SphMaterialTable>) {
     if !table.names.is_empty() {
         atoms.ntypes = table.names.len();
     }
@@ -317,14 +317,14 @@ mod tests {
 
     #[test]
     fn empty_column_is_empty() {
-        let a = MudAtom::new();
+        let a = SphAtom::new();
         assert_eq!(a.h.len(), 0);
         assert_eq!(a.dev_stress.len(), 0);
     }
 
     #[test]
     fn material_config_to_params_derives_shear() {
-        let cfg = MudMaterialConfig {
+        let cfg = SphMaterialConfig {
             name: "glass".into(),
             mu_s: 0.38,
             mu_2: 0.64,
@@ -346,7 +346,7 @@ mod tests {
 
     #[test]
     fn material_table_index_lookup() {
-        let mut t = MudMaterialTable::new();
+        let mut t = SphMaterialTable::new();
         let i = t.add("glass", MaterialParams::glass_beads_v0());
         assert_eq!(i, 0);
         assert_eq!(t.index_of("glass"), Some(0));

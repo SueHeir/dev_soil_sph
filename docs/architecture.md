@@ -24,11 +24,11 @@ GRASS   framework: App / Plugin / Scheduler / IO / MPI / coupling      (no parti
 
 | Our crate | Role | Mirrors |
 |---|---|---|
-| `mud_atom` | `MudAtom` per-particle data column (ρ, deviatoric stress, h, accumulators) + `MudMaterialTable` + particle insertion | `dirt_atom` / `pond_atom` |
-| `mud_kernel` | Wendland C2 kernel `W`, `∇W`, support radius helpers (pure functions) | (new; trivial, no DEM analog) |
-| `mud_constitutive` | the Dunatunga–Kamrin stress update (`update_stress`), `MaterialParams`, EOS, μ(I) — **pure, substrate-free** so gate #1 is unit-testable in isolation | (new; the §3.3 math) |
-| `mud_physics` | the per-step SOIL systems: density/velocity-gradient pass, calls `mud_constitutive::update_stress` per particle, momentum-force pass | `dirt_granular` / `pond_bond` |
-| `mud_core` | umbrella: re-export, `MudDefaultPlugins` PluginGroup, `prelude` | `dirt_core` / `pond_core` |
+| `sph_atom` | `SphAtom` per-particle data column (ρ, deviatoric stress, h, accumulators) + `SphMaterialTable` + particle insertion | `dirt_atom` / `pond_atom` |
+| `sph_kernel` | Wendland C2 kernel `W`, `∇W`, support radius helpers (pure functions) | (new; trivial, no DEM analog) |
+| `sph_constitutive` | the Dunatunga–Kamrin stress update (`update_stress`), `MaterialParams`, EOS, μ(I) — **pure, substrate-free** so gate #1 is unit-testable in isolation | (new; the §3.3 math) |
+| `sph_physics` | the per-step SOIL systems: density/velocity-gradient pass, calls `sph_constitutive::update_stress` per particle, momentum-force pass | `dirt_granular` / `pond_bond` |
+| `sph_core` | umbrella: re-export, `SphDefaultPlugins` PluginGroup, `prelude` | `dirt_core` / `pond_core` |
 
 **Reused as-is** (method-agnostic, no fork needed): `grass_app`, `grass_scheduler`, `grass_io`, `soil_core`, `soil_verlet`, `soil_print`, `soil_derive`, `dirt_fixes` (gravity / add-force / viscous damping), and `dirt_wall` (walls + the footpad rig — §6). `CorePlugins` (from `dirt_core`, DEM-free) gives us App/IO/domain/neighbor/run/print.
 
@@ -38,14 +38,14 @@ soil_core    = { git = "...SueHeir/soil", branch = "master", default-features = 
 soil_verlet  = { git = "...SueHeir/soil", branch = "master" }
 grass_app    = { git = "...SueHeir/grass", branch = "main" }
 grass_scheduler = { git = "...SueHeir/grass", branch = "main" }
-mud_atom     = { path = "../mud_atom" }
+sph_atom     = { path = "../sph_atom" }
 ```
 
-> **Naming:** the tier is presented as **dev_soil_sph** (the `dev_` prefix marks a non-DEM method not personally validated by the author). The crates keep the friendly `mud_*` prefix (`mud_core` / `mud_atom` / `mud_kernel` / `mud_physics`) and the `MudAtom` data type — the same convention as `dev_field_efvm`, whose crates stay `cfd_*`.
+> **Naming:** the tier is presented as **dev_soil_sph** (the `dev_` prefix marks a non-DEM method not personally validated by the author). The crates keep the friendly `sph_*` prefix (`sph_core` / `sph_atom` / `sph_kernel` / `sph_physics`) and the `SphAtom` data type — the same convention as `dev_field_efvm`, whose crates stay `cfd_*`.
 
 ---
 
-## 3. The `MudAtom` data column
+## 3. The `SphAtom` data column
 
 Per-particle state, declared as a SOIL `AtomData` column. The attribute on each field is a *communication contract*, not decoration:
 - `#[forward]` — owner→ghost each step, **overwrite** on unpack. For values a neighbor must *read* (h, and — see §4 — ρ, stress).
@@ -56,7 +56,7 @@ Per-particle state, declared as a SOIL `AtomData` column. The attribute on each 
 use soil_derive::AtomData;
 
 #[derive(AtomData)]
-pub struct MudAtom {
+pub struct SphAtom {
     /// Smoothing length. Neighbors need it to evaluate the kernel → replicated to ghosts.
     #[forward] pub h: Vec<f64>,
 
@@ -79,13 +79,13 @@ pub struct MudAtom {
 
     /// Rest mass — neighbors need it for kernel sums (ρ_i = Σ m_j W, volume m_j/ρ_j), and
     /// the base `Atom.mass` is NOT forward-comm'd (FORWARD_PACK_SIZE=6 = pos+vel only), so
-    /// mass must be a #[forward] MudAtom column to be visible on ghosts.
+    /// mass must be a #[forward] SphAtom column to be visible on ghosts.
     #[forward] pub particle_mass: Vec<f64>,
 }
 ```
 Register once in the plugin's `build()`:
 ```rust
-register_atom_data!(app, MudAtom::new());   // requires AtomPlugin already added
+register_atom_data!(app, SphAtom::new());   // requires AtomPlugin already added
 ```
 The substrate then carries these columns through every migration, halo exchange, spatial-sort permutation, and restart **with zero comm code from us**.
 
@@ -118,14 +118,14 @@ SOIL's per-step phase order: `Setup → PreInitialIntegration → InitialIntegra
 InitialIntegration   [soil_verlet]   half-kick v, drift x                     (positions move)
 PreNeighbor          [soil]          borders / forward-comm ghosts (pos,vel,h,ρ,p,s from prev step)
 Neighbor             [soil]          (re)build full neighbor list
-PreForce  ┌ pass 1   [mud_physics]   GATHER: each owner i sums over neighbors:
+PreForce  ┌ pass 1   [sph_physics]   GATHER: each owner i sums over neighbors:
           │                            velgrad L_i  +=  (m_j/ρ_j)(v_j−v_i) ⊗ ∇W_ij
           │                            drho_dt_i    +=  ρ_i (v_i−v_j)·∇W_ij      (continuity)
-          ├ integrate ρ [mud_physics] ρ_i  +=  drho_dt_i · dt                    (continuity state)
-          ├ constitutive[mud_physics] p_i = EOS(ρ_i)  [separation: 0 if ρ<ρ_c]   ← physics-design §3.2
+          ├ integrate ρ [sph_physics] ρ_i  +=  drho_dt_i · dt                    (continuity state)
+          ├ constitutive[sph_physics] p_i = EOS(ρ_i)  [separation: 0 if ρ<ρ_c]   ← physics-design §3.2
           │                            D,W from L_i; hypoelastic trial; µ(I) return map → dev_stress_i   ← §3.3
           └ HALO EXCHANGE ★ [sph]      forward-comm density, pressure, dev_stress  owner→ghost
-Force     ┌ pass 2   [mud_physics]   GATHER: each owner i sums neighbor stress divergence:
+Force     ┌ pass 2   [sph_physics]   GATHER: each owner i sums neighbor stress divergence:
           │                            force_i += Σ_j m_j(σ_i/ρ_i² + σ_j/ρ_j²)·∇W_ij   ← physics-design §4
           └ body force [dirt_fixes]   + gravity ; + artificial viscosity / stress if enabled
 FinalIntegration     [soil_verlet]   final half-kick v
@@ -139,7 +139,7 @@ FinalIntegration     [soil_verlet]   final half-kick v
 ```rust
 use soil_core::comm::forward_comm_borders;
 app.add_update_system(
-    forward_comm_borders.after("mud_const"),   // push freshly-computed ρ, p, σ to ghosts
+    forward_comm_borders.after("sph_const"),   // push freshly-computed ρ, p, σ to ghosts
     ParticleSimScheduleSet::PreForce,
 );
 ```
@@ -149,12 +149,12 @@ It reuses the swap topology recorded at the last rebuild (`CommTopology.swap_dat
 ### 4.3 The gather force loop (idiom, copied from `dirt_granular`)
 
 ```rust
-fn mud_momentum(atoms: ResMut<Atom>, neighbor: Res<Neighbor>, registry: Res<AtomDataRegistry>) {
-    let sph = registry.expect::<MudAtom>("MudAtom");
+fn sph_momentum(atoms: ResMut<Atom>, neighbor: Res<Neighbor>, registry: Res<AtomDataRegistry>) {
+    let sph = registry.expect::<SphAtom>("SphAtom");
     let mut atoms = atoms;
     let nlocal = atoms.nlocal as usize;
     for (i, j) in neighbor.pairs(nlocal) {        // full list: every neighbor of i, ghost or local
-        let gradw = grad_w(&atoms, &sph, i, j);   // ∇W_ij from mud_kernel
+        let gradw = grad_w(&atoms, &sph, i, j);   // ∇W_ij from sph_kernel
         // σ/ρ² for both endpoints; pressure & dev_stress on ghost j are valid (forward-comm'd ★)
         let term = stress_term(&sph, i, j);        // m_j (σ_i/ρ_i² + σ_j/ρ_j²)
         for d in 0..3 { atoms.force[i][d] += dot(term, gradw, d); }
@@ -164,12 +164,12 @@ fn mud_momentum(atoms: ResMut<Atom>, neighbor: Res<Neighbor>, registry: Res<Atom
 ```
 Register the systems into phases, ordering within `PreForce` by label:
 ```rust
-impl Plugin for MudPhysicsPlugin {
+impl Plugin for SphPhysicsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_update_system(mud_density_velgrad.label("mud_density"), ParticleSimScheduleSet::PreForce)
-           .add_update_system(mud_constitutive.label("mud_const").after("mud_density"), ParticleSimScheduleSet::PreForce)
-           .add_update_system(mud_forward_stress.after("mud_const"), ParticleSimScheduleSet::PreForce) // ★
-           .add_update_system(mud_momentum.label("mud_force"), ParticleSimScheduleSet::Force);
+        app.add_update_system(sph_density_velgrad.label("sph_density"), ParticleSimScheduleSet::PreForce)
+           .add_update_system(sph_constitutive.label("sph_const").after("sph_density"), ParticleSimScheduleSet::PreForce)
+           .add_update_system(sph_forward_stress.after("sph_const"), ParticleSimScheduleSet::PreForce) // ★
+           .add_update_system(sph_momentum.label("sph_force"), ParticleSimScheduleSet::Force);
     }
 }
 ```
@@ -178,12 +178,12 @@ impl Plugin for MudPhysicsPlugin {
 
 ## 5. The constitutive update lives here
 
-`physics-design.md` §3.3 (the cancellation-safe Dunatunga–Kamrin return map) is the body of `mud_constitutive` — a **per-particle, no-neighbor** system at `PreForce`:
-- in: `velgrad` L_i (from pass 1), `density` ρ_i (just integrated), `dev_stress` s_i^n (persistent state), `dt`, material params (a `Res<MudMaterialTable>`).
+`physics-design.md` §3.3 (the cancellation-safe Dunatunga–Kamrin return map) is the body of `sph_constitutive` — a **per-particle, no-neighbor** system at `PreForce`:
+- in: `velgrad` L_i (from pass 1), `density` ρ_i (just integrated), `dev_stress` s_i^n (persistent state), `dt`, material params (a `Res<SphMaterialTable>`).
 - out: `pressure` p_i, updated `dev_stress` s_i^{n+1}; assemble σ_i = −p_i I + s_i for pass 2.
 - It is the pure function `(s_n, D, W, ρ, Δt, params) → (s_{n+1}, p)` behind a clean boundary — swapping in cohesion or a different rheology touches only this system. Its **unit test** (vs RK4, no SPH) is the first acceptance gate and needs none of the substrate.
 
-Density is carried as integrated state (continuity, for the free surface) — note this means `mud_density_velgrad` produces `drho_dt` and a small step integrates ρ; `soil_verlet` integrates only x and v, so **ρ integration is our system**, not the substrate's. (Alternative: summation density `ρ_i = Σ m_j W_ij` avoids ρ-state but underestimates at free surfaces — deferred.)
+Density is carried as integrated state (continuity, for the free surface) — note this means `sph_density_velgrad` produces `drho_dt` and a small step integrates ρ; `soil_verlet` integrates only x and v, so **ρ integration is our system**, not the substrate's. (Alternative: summation density `ρ_i = Σ m_j W_ij` avoids ρ-state but underestimates at free surfaces — deferred.)
 
 ---
 
@@ -214,18 +214,18 @@ let depth = z_contact - plate.point_z;       // point_z advances by v·dt in wal
 
 Thin driver; geometry/materials/stages live in `config.toml` (the DIRT convention):
 ```rust
-use mud_core::prelude::*;
+use sph_core::prelude::*;
 fn main() {
     let mut app = App::new();
     app.add_plugins(CorePlugins)          // GRASS+SOIL: app, IO, domain, neighbor, run, print
-       .add_plugins(MudDefaultPlugins)    // our umbrella: MudAtom + insert + verlet + ρ-integrate + physics
+       .add_plugins(SphDefaultPlugins)    // our umbrella: SphAtom + insert + verlet + ρ-integrate + physics
        .add_plugins(GravityPlugin)        // dirt_fixes
        .add_plugins(WallPlugin);          // dirt_wall (footpad, container, gate)
     app.start();                          // builds [domain], inserts [[particles.insert]], runs [[run]] stages
     dump_results(&app);
 }
 ```
-`MudDefaultPlugins` is a `PluginGroup` bundling, in phase order: `MudAtomPlugin` (column + materials) → `MudInsertPlugin` → `VelocityVerletPlugin::new()` → `MudDensityIntegratePlugin` → `MudPhysicsPlugin` (the §4 systems).
+`SphDefaultPlugins` is a `PluginGroup` bundling, in phase order: `SphAtomPlugin` (column + materials) → `SphInsertPlugin` → `VelocityVerletPlugin::new()` → `SphDensityIntegratePlugin` → `SphPhysicsPlugin` (the §4 systems).
 
 **Validation gate #3 — column collapse** is a near-clone of `bench_column_collapse`: settle stage, then a `collapse` stage whose `on_enter` opens the gate wall via `Walls::deactivate_by_name`; the multi-stage state machine uses `#[derive(StageEnum)]` + `StatesPlugin` + `StageAdvancePlugin`, gated by `in_stage("collapse")`. Post-run, read final `(pos, ρ, σ)` off the `Atom` + `AtomDataRegistry` resources and write the deposit CSV for the Lagrée error-map fit.
 
@@ -247,16 +247,16 @@ Dump columns via `DumpRegistry::register_scalar("density", …)` / `register_vec
 2. **Full vs half neighbor list** — recommending full (`newton=false`) gather for v0 simplicity/correctness; half-list is a later perf optimization.
 3. **Continuity vs summation density** — recommending continuity (free surface), which means a tier-side ρ-integration system (soil_verlet won't do it).
 4. **Boundary scheme** — dummy boundary particles vs penalty wall for the SPH–wall/footpad contact; affects column-collapse basal friction (DIRT flags runout sensitivity to exactly this).
-5. ~~**Crate naming**~~ — DECIDED: tier presented as **dev_soil_sph**; crates keep the `mud_*` prefix.
+5. ~~**Crate naming**~~ — DECIDED: tier presented as **dev_soil_sph**; crates keep the `sph_*` prefix.
 
 ---
 
 ## 10. Suggested build order (first commits)
 
-1. **`mud_kernel`** — Wendland C2 `W`, `∇W` + unit tests (partition of unity, gradient sum). Pure, no substrate. *Trivial, high-confidence start.*
+1. **`sph_kernel`** — Wendland C2 `W`, `∇W` + unit tests (partition of unity, gradient sum). Pure, no substrate. *Trivial, high-confidence start.*
 2. **Constitutive unit test** — implement `physics-design.md` §3.3 as a standalone function + the RK4 comparison test (gate #1). No substrate needed.
-3. **`mud_atom`** — `MudAtom` column + `register_atom_data!` + materials + insertion (mirror `dirt_atom`).
-4. **`mud_physics` pass 1 + constitutive + pass 2** + the ★ halo exchange; wire `MudDefaultPlugins`.
+3. **`sph_atom`** — `SphAtom` column + `register_atom_data!` + materials + insertion (mirror `dirt_atom`).
+4. **`sph_physics` pass 1 + constitutive + pass 2** + the ★ halo exchange; wire `SphDefaultPlugins`.
 5. **Hydrostatic-column test** — a settled bed under gravity holds still with correct pressure (shakes out EOS, BCs, the halo exchange).
 6. **Column-collapse example** — gate #3, against the DEM data from `docs/dem-campaign.md`.
 

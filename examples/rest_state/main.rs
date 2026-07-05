@@ -1,4 +1,4 @@
-//! Rest-state smoke test — the minimal end-to-end MUD run.
+//! Rest-state smoke test — the minimal end-to-end dev_soil_sph run.
 //!
 //! A uniform lattice block in a fully periodic box with no gravity should stay at
 //! rest: the density is uniform, so the pressure is uniform, so the symmetric SPH
@@ -10,11 +10,11 @@
 //! Run:
 //!   cargo run --release --example rest_state -- examples/rest_state/config.toml
 
-use mud_core::prelude::*;
+use sph_core::prelude::*;
 
 fn main() {
     let mut app = App::new();
-    app.add_plugins(CorePlugins).add_plugins(MudDefaultPlugins);
+    app.add_plugins(CorePlugins).add_plugins(SphDefaultPlugins);
     app.start();
 
     // ── Post-run check ───────────────────────────────────────────────────────
@@ -22,7 +22,7 @@ fn main() {
     let registry = app
         .get_resource_ref::<AtomDataRegistry>()
         .expect("AtomDataRegistry resource");
-    let sph = registry.expect::<MudAtom>("rest_state post-check");
+    let sph = registry.expect::<SphAtom>("rest_state post-check");
     let n = atoms.nlocal as usize;
 
     let mut max_speed = 0.0f64;

@@ -14,7 +14,7 @@
 //! Run:
 //!   cargo run --release --example conduction_test -- examples/conduction_test/config.toml
 
-use mud_core::prelude::*;
+use sph_core::prelude::*;
 use std::f64::consts::PI;
 
 const L_X: f64 = 0.05;
@@ -23,7 +23,7 @@ const AMP: f64 = 0.1;
 
 /// Setup system: overwrite T with the sinusoidal field after insertion.
 fn init_sinusoid(atoms: Res<Atom>, registry: Res<AtomDataRegistry>) {
-    let mut sph = registry.expect_mut::<MudAtom>("init_sinusoid");
+    let mut sph = registry.expect_mut::<SphAtom>("init_sinusoid");
     let k = 2.0 * PI / L_X;
     for i in 0..atoms.nlocal as usize {
         sph.temperature[i] = T0 * (1.0 + AMP * (k * atoms.pos[i][0]).sin());
@@ -32,14 +32,14 @@ fn init_sinusoid(atoms: Res<Atom>, registry: Res<AtomDataRegistry>) {
 
 fn main() {
     let mut app = App::new();
-    app.add_plugins(CorePlugins).add_plugins(MudDefaultPlugins);
+    app.add_plugins(CorePlugins).add_plugins(SphDefaultPlugins);
     app.add_setup_system(init_sinusoid, ScheduleSetupSet::PostSetup);
     app.start();
 
     let atoms = app.get_resource_ref::<Atom>().expect("Atom");
     let registry = app.get_resource_ref::<AtomDataRegistry>().expect("registry");
-    let sph = registry.expect::<MudAtom>("conduction post-check");
-    let table = app.get_resource_ref::<MudMaterialTable>().expect("materials");
+    let sph = registry.expect::<SphAtom>("conduction post-check");
+    let table = app.get_resource_ref::<SphMaterialTable>().expect("materials");
     let n = atoms.nlocal as usize;
     let mat = &table.params[0];
 

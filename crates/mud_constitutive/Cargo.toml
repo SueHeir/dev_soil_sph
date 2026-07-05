@@ -1,8 +1,0 @@
-[package]
-name = "mud_constitutive"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
-description = "MUD — Dunatunga–Kamrin elasto-viscoplastic + density-separation constitutive update. Pure, substrate-free."
-
-[dependencies]

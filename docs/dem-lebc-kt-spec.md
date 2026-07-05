@@ -64,7 +64,7 @@ Use the exact `η*`, `γ*` from one canonical reference and cite it (Lun, Savage
 With the pipeline validated:
 - Run the **frictional** production sweep (μ_p = 0.5, e ≈ 0.7) across `I ∈ [1e-4, 0.5]` (≥5 points/decade) per `docs/dem-campaign.md` §3.2.
 - Fit `μ(I) = μ_s + (μ_2 − μ_s)/(I_0/I + 1)` and `Φ(I)`; extract `ρ_c = Φ_max ρ_s` and an effective `K` (separate isotropic-compression run).
-- Emit the calibration file (`docs/dem-campaign.md` §6 YAML). That file is the entire interface to dev_soil_sph — `MaterialParams` in `mud_constitutive` is populated from it (replacing the `glass_beads_v0()` literature anchors).
+- Emit the calibration file (`docs/dem-campaign.md` §6 YAML). That file is the entire interface to dev_soil_sph — `MaterialParams` in `sph_constitutive` is populated from it (replacing the `glass_beads_v0()` literature anchors).
 
 ---
 
@@ -72,7 +72,7 @@ With the pipeline validated:
 1. LEBC produces a homogeneous, steady linear shear profile (no shear banding, plateau in T and stress).
 2. Frictionless sub-sweep matches KT (`p`, `σ_xy`, `T`) within a few % at moderate Φ.
 3. Frictional sweep yields a clean μ(I), Φ(I) collapse; μ_s, μ_2, I_0 in plausible glass-bead ranges (≈0.38 / 0.64 / 0.28 as anchors, possibly lower for spheres).
-4. Calibration YAML written and round-trips into `mud_constitutive::MaterialParams`.
+4. Calibration YAML written and round-trips into `sph_constitutive::MaterialParams`.
 
 ## References
 - GDR MiDi 2004; da Cruz et al. 2005 — the I-scaling from DEM simple shear (`docs/literature-review.md`).

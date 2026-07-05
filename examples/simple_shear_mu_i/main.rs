@@ -1,7 +1,7 @@
 //! Simple-shear μ(I) flow-law recovery — element test of the return-map update.
 //!
 //! **What this validates.** The Dunatunga–Kamrin / μ(I) Drucker–Prager stress
-//! update ([`update_stress`], `mud_constitutive`) is supposed to make a sheared
+//! update ([`update_stress`], `sph_constitutive`) is supposed to make a sheared
 //! granular continuum obey the Jop–Forterre–Pouliquen inertial flow law
 //!
 //! ```text
@@ -29,7 +29,7 @@
 //! Exit code 0 = PASS (fitted curve and every point match the target μ(I)),
 //! nonzero = FAIL.
 
-use mud_constitutive::{
+use sph_constitutive::{
     equiv_shear_stress, mu_of_i, pressure, update_stress, MaterialParams,
 };
 

@@ -1,6 +1,6 @@
 //! DEMO (not a validation) — self-consistent showcase, excluded from the dev_sph
 //! validation set (see validation/README.md). Its PASS/FAIL is a smoke check
-//! against MUD itself, not an independent reference.
+//! against dev_soil_sph itself, not an independent reference.
 //!
 //! Haff cooling — the first granular-temperature milestone (`physics-design.md` §11).
 //!
@@ -15,11 +15,11 @@
 //! Run:
 //!   cargo run --release --example haff_cooling -- examples/haff_cooling/config.toml
 
-use mud_core::prelude::*;
+use sph_core::prelude::*;
 
 fn main() {
     let mut app = App::new();
-    app.add_plugins(CorePlugins).add_plugins(MudDefaultPlugins);
+    app.add_plugins(CorePlugins).add_plugins(SphDefaultPlugins);
     app.start();
 
     // ── Analyze ──────────────────────────────────────────────────────────────
@@ -27,9 +27,9 @@ fn main() {
     let registry = app
         .get_resource_ref::<AtomDataRegistry>()
         .expect("registry");
-    let sph = registry.expect::<MudAtom>("haff post-check");
+    let sph = registry.expect::<SphAtom>("haff post-check");
     let table = app
-        .get_resource_ref::<MudMaterialTable>()
+        .get_resource_ref::<SphMaterialTable>()
         .expect("material table");
     let run = app.get_resource_ref::<RunConfig>().expect("run config");
     let n = atoms.nlocal as usize;

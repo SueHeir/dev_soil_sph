@@ -28,8 +28,8 @@ gx = 0.0
 gy = 0.0
 gz = -9.81
 
-[mud]
-[[mud.materials]]
+[sph]
+[[sph.materials]]
 name = "glass"
 mu_s = 0.38
 mu_2 = 0.64
@@ -41,7 +41,7 @@ poisson = 0.3
 d = 0.5e-3
 
 # Frozen boundary: 3 layers (z = 0.0025, 0.0075, 0.0125).
-[[mud.insert]]
+[[sph.insert]]
 material = "glass"
 region_min = [0.0, 0.0, 0.0]
 region_max = [0.03, 0.03, 0.015]
@@ -49,7 +49,7 @@ spacing = 0.005
 frozen = true
 
 # Fluid column: 10 layers above the boundary (z = 0.0175 … 0.0625).
-[[mud.insert]]
+[[sph.insert]]
 material = "glass"
 region_min = [0.0, 0.0, 0.015]
 region_max = [0.03, 0.03, 0.065]

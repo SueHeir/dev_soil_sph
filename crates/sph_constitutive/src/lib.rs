@@ -1,4 +1,4 @@
-//! MUD — granular constitutive core.
+//! dev_soil_sph — granular constitutive core.
 //!
 //! Pure, substrate-free. Implements the Dunatunga–Kamrin elasto-viscoplastic
 //! stress update with a μ(I) Drucker–Prager yield and density-based tension-free
@@ -7,7 +7,7 @@
 //! `(s_n, L, ρ, dt, params) → StressOut { s_{n+1}, p, σ }`.
 //!
 //! The update is a **pure function** — no I/O, no globals, no neighbor coupling
-//! — so `mud_physics` can call it per particle inside a SOIL system and so it is
+//! — so `sph_physics` can call it per particle inside a SOIL system and so it is
 //! unit-testable in isolation (the App. B verification, `docs/physics-design.md`
 //! §8.1, lives in `tests` below).
 //!

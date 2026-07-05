@@ -18,12 +18,12 @@ boundary_y = "periodic"
 boundary_z = "periodic"
 
 [neighbor]
-newton = false        # MUD uses the full-list gather formulation
+newton = false        # dev_soil_sph uses the full-list gather formulation
 skin_fraction = 1.2
 bin_size = 0.035      # >= max pair cutoff = 2h·skin (h = 1.3·spacing = 0.013)
 
-[mud]
-[[mud.materials]]
+[sph]
+[[sph.materials]]
 name = "glass"
 mu_s = 0.38
 mu_2 = 0.64
@@ -34,7 +34,7 @@ bulk_modulus = 3.75e6
 poisson = 0.3
 d = 0.5e-3
 
-[[mud.insert]]
+[[sph.insert]]
 material = "glass"
 region_min = [0.0, 0.0, 0.0]
 region_max = [0.1, 0.1, 0.1]

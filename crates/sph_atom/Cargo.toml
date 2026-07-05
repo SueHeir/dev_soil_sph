@@ -1,9 +1,9 @@
 [package]
-name = "mud_atom"
+name = "sph_atom"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "MUD — per-particle SPH data (MudAtom column) and granular material table, on the SOIL substrate."
+description = "dev_soil_sph — per-particle SPH data (SphAtom column) and granular material table, on the SOIL substrate."
 
 [dependencies]
 soil_core = { git = "ssh://git@192.168.0.170:2222/SueHeir/soil.git", branch = "main", default-features = false }
@@ -11,4 +11,4 @@ soil_derive = { git = "ssh://git@192.168.0.170:2222/SueHeir/soil.git", branch = 
 grass_app = { git = "ssh://git@192.168.0.170:2222/SueHeir/grass.git", branch = "main" }
 grass_scheduler = { git = "ssh://git@192.168.0.170:2222/SueHeir/grass.git", branch = "main" }
 serde = { version = "1", features = ["derive"] }
-mud_constitutive = { path = "../mud_constitutive" }
+sph_constitutive = { path = "../sph_constitutive" }

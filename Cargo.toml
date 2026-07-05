@@ -1,16 +1,16 @@
 [package]
-name = "mud"
+name = "sph"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "MUD — Meshfree Unstructured Dynamics (granular SPH): examples and binaries"
+description = "dev_soil_sph — Meshfree Unstructured Dynamics (granular SPH): examples and binaries"
 publish = false
 
 [dependencies]
-mud_core = { path = "crates/mud_core" }
+sph_core = { path = "crates/sph_core" }
 # Pure constitutive core — used directly by the `simple_shear_mu_i` element test,
 # which drives the return map in isolation (no App / substrate).
-mud_constitutive = { path = "crates/mud_constitutive" }
+sph_constitutive = { path = "crates/sph_constitutive" }
 soil_deform = { git = "ssh://git@192.168.0.170:2222/SueHeir/soil.git", branch = "main" }
 
 [[example]]
@@ -64,7 +64,7 @@ grass_multi     = { path = "../grass/crates/grass_multi" }
 grass_scheduler = { path = "../grass/crates/grass_scheduler" }
 
 # Build against the local `soil` checkout to pick up the triclinic / Lees-Edwards-shear
-# work, so MUD can shear with soil_deform. Relative sibling path so it is portable across
+# work, so dev_soil_sph can shear with soil_deform. Relative sibling path so it is portable across
 # hosts (macOS/Linux): assumes soil is checked out beside this repo (e.g. ~/projects/soil).
 # (The GitHub-pinned `soil` dep targets branch `master`, which does not exist upstream, so
 # the local checkout is authoritative until that is reconciled.)
@@ -74,10 +74,10 @@ soil_derive = { path = "../soil/crates/soil_derive" }
 soil_verlet = { path = "../soil/crates/soil_verlet" }
 soil_print  = { path = "../soil/crates/soil_print" }
 soil_deform = { path = "../soil/crates/soil_deform" }
-# NOTE: MUD's crate deps (mud_atom/mud_physics/mud_core) and root `soil_deform`
+# NOTE: dev_soil_sph's crate deps (sph_atom/sph_physics/sph_core) and root `soil_deform`
 # were repointed from the (dead-on-this-fleet) github.com URLs to the Gitea
 # primary remote, mirroring soil's own "repoint to Gitea" change. The grass patch
-# above now serves BOTH MUD's grass deps and the grass deps the local `soil`
+# above now serves BOTH dev_soil_sph's grass deps and the grass deps the local `soil`
 # crates pull in, so there is exactly one `grass`/`soil` version in the graph.
 
 [[example]]

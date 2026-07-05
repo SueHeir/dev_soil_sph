@@ -10,7 +10,7 @@
 //!   cargo run --release --example column_collapse -- examples/column_collapse/config.toml
 //! Then open examples/column_collapse/dump/ in OVITO.
 
-use mud_core::prelude::*;
+use sph_core::prelude::*;
 
 const R0: f64 = 0.025; // initial column half-width  L0
 const H0: f64 = 0.05; // initial column height       H0  (config a = H0/R0 = 2)
@@ -18,25 +18,25 @@ const H0: f64 = 0.05; // initial column height       H0  (config a = H0/R0 = 2)
 fn main() {
     let mut app = App::new();
     app.add_plugins(CorePlugins)
-        .add_plugins(MudDefaultPlugins)
-        .add_plugins(MudGravityPlugin);
+        .add_plugins(SphDefaultPlugins)
+        .add_plugins(SphGravityPlugin);
 
-    // Register MUD fields for the dump (OVITO can color by any of these).
+    // Register dev_soil_sph fields for the dump (OVITO can color by any of these).
     {
         let dump = app
             .get_resource_ref::<DumpRegistry>()
             .expect("DumpRegistry (PrintPlugin)");
         dump.register_scalar("density", |a, r| {
-            r.expect::<MudAtom>("dump").density[..a.nlocal as usize].to_vec()
+            r.expect::<SphAtom>("dump").density[..a.nlocal as usize].to_vec()
         });
         dump.register_scalar("pressure", |a, r| {
-            r.expect::<MudAtom>("dump").pressure[..a.nlocal as usize].to_vec()
+            r.expect::<SphAtom>("dump").pressure[..a.nlocal as usize].to_vec()
         });
         dump.register_scalar("temperature", |a, r| {
-            r.expect::<MudAtom>("dump").temperature[..a.nlocal as usize].to_vec()
+            r.expect::<SphAtom>("dump").temperature[..a.nlocal as usize].to_vec()
         });
         dump.register_scalar("is_boundary", |a, r| {
-            r.expect::<MudAtom>("dump").is_boundary[..a.nlocal as usize].to_vec()
+            r.expect::<SphAtom>("dump").is_boundary[..a.nlocal as usize].to_vec()
         });
         dump.register_scalar("speed", |a, _r| {
             (0..a.nlocal as usize)
@@ -54,7 +54,7 @@ fn main() {
     // ── Analyze the deposit ──────────────────────────────────────────────────
     let atoms = app.get_resource_ref::<Atom>().expect("Atom");
     let registry = app.get_resource_ref::<AtomDataRegistry>().expect("registry");
-    let sph = registry.expect::<MudAtom>("collapse post-check");
+    let sph = registry.expect::<SphAtom>("collapse post-check");
     let n = atoms.nlocal as usize;
 
     // Deposit profile on a RESOLUTION-INDEPENDENT grid: fixed bin width over a
@@ -104,10 +104,10 @@ fn main() {
         println!("(deposit profile written to {dir}/profile.csv)");
     }
 
-    // Optional DEM/reference overlay: set MUD_DEM_PROFILE=path.csv (x,h rows) to
+    // Optional DEM/reference overlay: set SPH_DEM_PROFILE=path.csv (x,h rows) to
     // get a one-number normalized L2 shape error vs that profile (e.g. the 100k-DEM
     // deposit). Binned onto the same grid as the SPH profile.
-    if let Ok(path) = std::env::var("MUD_DEM_PROFILE") {
+    if let Ok(path) = std::env::var("SPH_DEM_PROFILE") {
         if let Ok(txt) = std::fs::read_to_string(&path) {
             let mut refp = vec![0.0f64; nbins];
             for line in txt.lines().skip(1) {

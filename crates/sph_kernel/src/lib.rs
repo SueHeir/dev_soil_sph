@@ -1,8 +1,8 @@
-//! MUD — Wendland smoothing kernels for SPH.
+//! dev_soil_sph — Wendland smoothing kernels for SPH.
 //!
 //! Pure, substrate-free. Provides the Wendland C2 smoothing kernel `W(r, h)` and
 //! its gradient `∇W` in 2D and 3D. See `docs/sph-primer.md` §4 and
-//! `docs/architecture.md` (`mud_kernel`).
+//! `docs/architecture.md` (`sph_kernel`).
 //!
 //! # The kernel
 //!
@@ -22,7 +22,7 @@
 //! # Usage in a pair loop
 //!
 //! ```
-//! use mud_kernel::Kernel;
+//! use sph_kernel::Kernel;
 //!
 //! let k = Kernel::Dim3;
 //! let h = 0.1;

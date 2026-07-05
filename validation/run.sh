@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# MUD (dev_sph) validation set — one-command, skeptic-facing runner.
+# dev_soil_sph validation set — one-command, skeptic-facing runner.
 #
 # Builds and runs ONLY the validation examples (rest_state, hydrostatic_column,
 # column_collapse a/b/c, and the μ(I) return-map recovery), each of which asserts

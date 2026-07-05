@@ -1,7 +1,7 @@
-//! Particle insertion for MUD — regular-lattice block fill.
+//! Particle insertion for dev_soil_sph — regular-lattice block fill.
 //!
 //! SPH wants an *ordered* initial packing (not the random placement DEM uses), so
-//! each `[[mud.insert]]` block fills its region on a regular cubic lattice of the
+//! each `[[sph.insert]]` block fills its region on a regular cubic lattice of the
 //! given spacing. Per-particle mass is `ρ₀ · Δ³` (the lattice cell volume) and the
 //! neighbor `cutoff_radius` is set to the kernel support `2h`.
 
@@ -10,18 +10,18 @@ use grass_scheduler::prelude::*;
 
 use soil_core::{Atom, AtomDataRegistry, Domain, ScheduleSetupSet};
 
-use mud_constitutive::pressure;
+use sph_constitutive::pressure;
 
-use crate::{MudAtom, MudConfig, MudMaterialTable};
+use crate::{SphAtom, SphConfig, SphMaterialTable};
 
-/// Inserts MUD particles at setup time from `[[mud.insert]]` blocks.
-pub struct MudAtomInsertPlugin;
+/// Inserts dev_soil_sph particles at setup time from `[[sph.insert]]` blocks.
+pub struct SphAtomInsertPlugin;
 
-impl Plugin for MudAtomInsertPlugin {
+impl Plugin for SphAtomInsertPlugin {
     fn build(&self, app: &mut App) {
         // Run after domain decomposition so each rank's subdomain bounds exist.
         app.add_setup_system(
-            mud_insert_atoms.after("domain_read_input"),
+            sph_insert_atoms.after("domain_read_input"),
             ScheduleSetupSet::Setup,
         );
     }
@@ -44,12 +44,12 @@ fn owns_position(domain: &Domain, pos: &[f64; 3]) -> bool {
     (0..3).all(|d| pos[d] >= domain.sub_domain_low[d] && pos[d] < domain.sub_domain_high[d])
 }
 
-/// Append one SPH particle to the shared `Atom` arrays and the `MudAtom` column,
+/// Append one SPH particle to the shared `Atom` arrays and the `SphAtom` column,
 /// keeping every column length-synchronized.
 #[allow(clippy::too_many_arguments)]
 fn insert_particle(
     atom: &mut Atom,
-    sph: &mut MudAtom,
+    sph: &mut SphAtom,
     pos: [f64; 3],
     vel: [f64; 3],
     mass: f64,
@@ -92,25 +92,25 @@ fn insert_particle(
     sph.boundary_vel.push(boundary_vel);
 }
 
-/// Setup system: fill each `[[mud.insert]]` block with a lattice of particles.
-pub fn mud_insert_atoms(
+/// Setup system: fill each `[[sph.insert]]` block with a lattice of particles.
+pub fn sph_insert_atoms(
     domain: Res<Domain>,
     mut atom: ResMut<Atom>,
     registry: Res<AtomDataRegistry>,
-    table: Res<MudMaterialTable>,
-    cfg: Res<MudConfig>,
+    table: Res<SphMaterialTable>,
+    cfg: Res<SphConfig>,
 ) {
     let inserts = match &cfg.insert {
         Some(v) if !v.is_empty() => v,
         _ => return,
     };
-    let mut sph = registry.expect_mut::<MudAtom>("mud_insert_atoms");
+    let mut sph = registry.expect_mut::<SphAtom>("sph_insert_atoms");
     let mut tag = atom.natoms as u32;
 
     for ins in inserts {
         let mat_idx = table.index_of(&ins.material).unwrap_or_else(|| {
             eprintln!(
-                "ERROR: unknown material '{}' in [[mud.insert]]. Available: {:?}",
+                "ERROR: unknown material '{}' in [[sph.insert]]. Available: {:?}",
                 ins.material, table.names
             );
             std::process::exit(1);
@@ -145,7 +145,7 @@ pub fn mud_insert_atoms(
         }
     }
 
-    println!("MUD: inserted {} local particles", atom.nlocal);
+    println!("dev_soil_sph: inserted {} local particles", atom.nlocal);
 }
 
 #[cfg(test)]
