@@ -1,8 +1,8 @@
 # SPH Solver Architecture — riding the GRASS → SOIL stack
 
-How the SPH solver from `docs/physics-design.md` maps onto Liz's `grass`/`soil`/`dirt` Rust stack. This doc is the bridge between the *physics* (what each particle computes) and the *code* (how it's organized, scheduled, and communicated). It is written from a full read of `grass`, `soil`, `dirt`, and `pond`; file references are concrete so they can be opened directly.
+How the SPH solver from `docs/physics-design.md` maps onto Liz's `grass`/`soil`/`dirt` Rust stack. This doc is the bridge between the *physics* (what each particle computes) and the *code* (how it's organized, scheduled, and communicated). It is written from a full read of `grass`, `soil`, `dirt`, and `dev_soil_peri`; file references are concrete so they can be opened directly.
 
-> **Headline:** the bottom half of the SPH primer's architecture (neighbor search, domain decomposition, halo exchange, migration, integration, IO, MPI) **already exists in SOIL**. Our SPH tier is a thin physics layer — a *sibling of DIRT and POND* — that adds kernels, density, and the µ(I) constitutive update. The single real divergence from DEM is that **SPH needs two neighbor passes per step with a halo exchange between them** (§4).
+> **Headline:** the bottom half of the SPH primer's architecture (neighbor search, domain decomposition, halo exchange, migration, integration, IO, MPI) **already exists in SOIL**. Our SPH tier is a thin physics layer — a *sibling of DIRT and dev_soil_peri* — that adds kernels, density, and the µ(I) constitutive update. The single real divergence from DEM is that **SPH needs two neighbor passes per step with a halo exchange between them** (§4).
 
 ---
 
@@ -11,16 +11,16 @@ How the SPH solver from `docs/physics-design.md` maps onto Liz's `grass`/`soil`/
 ```
 GRASS   framework: App / Plugin / Scheduler / IO / MPI / coupling      (no particles)
   └─ SOIL   substrate: Atom, AtomData, domain decomp, halo comm, neighbor lists   (no physics)
-       ├─ DIRT   DEM physics  (pairwise contact)        ← template for structure
-       ├─ POND   peridynamics (bond forces, fracture)   ← template for "new method on SOIL"
-       └─ SPH    ← us: continuum granular (kernel + µ(I))
+       ├─ DIRT            DEM physics  (pairwise contact)        ← template for structure
+       ├─ dev_soil_peri   peridynamics (bond forces, fracture)   ← template for "new method on SOIL"
+       └─ SPH             ← us: continuum granular (kernel + µ(I))
 ```
 
-`pond` is **peridynamics, not fluids** — but it is the cleanest precedent for *adding a fresh non-DEM particle method to SOIL*, so we mirror its crate shape. We are a sibling tier, not built on DIRT or POND.
+`dev_soil_peri` is **peridynamics, not fluids** — but it is the cleanest precedent for *adding a fresh non-DEM particle method to SOIL*, so we mirror its crate shape. We are a sibling tier, not built on DIRT or dev_soil_peri.
 
 ---
 
-## 2. Crate layout (mirror `dirt` / `pond`)
+## 2. Crate layout (mirror `dirt` / `dev_soil_peri`)
 
 | Our crate | Role | Mirrors |
 |---|---|---|
@@ -41,7 +41,7 @@ grass_scheduler = { git = "...SueHeir/grass", branch = "main" }
 mud_atom     = { path = "../mud_atom" }
 ```
 
-> **Naming (decided):** the tier is **MUD — Meshfree Unstructured Dynamics**, fitting the nature-themed stack (grass/soil/dirt/pond). Crates `mud_core` / `mud_atom` / `mud_kernel` / `mud_physics`; data type `MudAtom`.
+> **Naming:** the tier is presented as **dev_soil_sph** (the `dev_` prefix marks a non-DEM method not personally validated by the author). The crates keep the friendly `mud_*` prefix (`mud_core` / `mud_atom` / `mud_kernel` / `mud_physics`) and the `MudAtom` data type — the same convention as `dev_field_efvm`, whose crates stay `cfd_*`.
 
 ---
 
@@ -247,7 +247,7 @@ Dump columns via `DumpRegistry::register_scalar("density", …)` / `register_vec
 2. **Full vs half neighbor list** — recommending full (`newton=false`) gather for v0 simplicity/correctness; half-list is a later perf optimization.
 3. **Continuity vs summation density** — recommending continuity (free surface), which means a tier-side ρ-integration system (soil_verlet won't do it).
 4. **Boundary scheme** — dummy boundary particles vs penalty wall for the SPH–wall/footpad contact; affects column-collapse basal friction (DIRT flags runout sensitivity to exactly this).
-5. ~~**Crate naming**~~ — DECIDED: **MUD** (Meshfree Unstructured Dynamics), crates `mud_*`.
+5. ~~**Crate naming**~~ — DECIDED: tier presented as **dev_soil_sph**; crates keep the `mud_*` prefix.
 
 ---
 
@@ -260,4 +260,4 @@ Dump columns via `DumpRegistry::register_scalar("density", …)` / `register_vec
 5. **Hydrostatic-column test** — a settled bed under gravity holds still with correct pressure (shakes out EOS, BCs, the halo exchange).
 6. **Column-collapse example** — gate #3, against the DEM data from `docs/dem-campaign.md`.
 
-*Drafted 2026-06-16 from full reads of grass/soil/dirt/pond. Companions: `docs/physics-design.md`, `docs/dem-campaign.md`, `docs/sph-primer.md`, `docs/literature-review.md`.*
+*Drafted 2026-06-16 from full reads of grass/soil/dirt/dev_soil_peri. Companions: `docs/physics-design.md`, `docs/dem-campaign.md`, `docs/sph-primer.md`, `docs/literature-review.md`.*

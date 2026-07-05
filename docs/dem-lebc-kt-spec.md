@@ -1,8 +1,8 @@
 # LEBC Rheometer + Kinetic-Theory Validation — implementation brief
 
-**For the `dirt`/`soil`-side work** (a separate effort). This is the Tier-1 rheometer of `docs/dem-campaign.md`: homogeneous simple shear of glass-bead spheres under Lees–Edwards boundary conditions (LEBC), producing the μ(I) and Φ(I) closure the MUD SPH solver consumes — and validated, in the regime where it is exact, against granular kinetic theory.
+**For the `dirt`/`soil`-side work** (a separate effort). This is the Tier-1 rheometer of `docs/dem-campaign.md`: homogeneous simple shear of glass-bead spheres under Lees–Edwards boundary conditions (LEBC), producing the μ(I) and Φ(I) closure the dev_soil_sph SPH solver consumes — and validated, in the regime where it is exact, against granular kinetic theory.
 
-**Division of labor.** This brief defines the DEM/substrate side (build LEBC + measure stress/temperature + KT cross-check + fit μ(I),Φ(I)). The MUD/SPH side consumes the resulting calibration file (`docs/dem-campaign.md` §6) and is unaffected by how it's produced. Keep all changes in `soil`/`dirt`; MUD does not depend on them at build time.
+**Division of labor.** This brief defines the DEM/substrate side (build LEBC + measure stress/temperature + KT cross-check + fit μ(I),Φ(I)). The dev_soil_sph/SPH side consumes the resulting calibration file (`docs/dem-campaign.md` §6) and is unaffected by how it's produced. Keep all changes in `soil`/`dirt`; dev_soil_sph does not depend on them at build time.
 
 ---
 
@@ -55,7 +55,7 @@ KT is exact for **smooth (frictionless) inelastic spheres** in the dilute-to-mod
 
 Use the exact `η*`, `γ*` from one canonical reference and cite it (Lun, Savage, Jeffrey & Chepurniy 1984; Garzó & Dufty 1999; Brilliantov & Pöschel 2004). The validation passes if measured `p`, `σ_xy`, `T` match KT within a few % in the moderate-Φ collisional band.
 
-**Why this matters downstream:** (i) it validates the virial-stress recorder you just built; (ii) KT is the natural closure for the **collisional branch (I ≳ 0.3)** that μ(I) cannot represent — the fast-impact/ejecta regime flagged in `docs/literature-review.md` — and a future MUD constitutive may add it; (iii) KT predicts the normal-stress differences `N₁, N₂` that the MUD μ(I) Drucker–Prager omits, telling us quantitatively whether that omission matters at our operating point.
+**Why this matters downstream:** (i) it validates the virial-stress recorder you just built; (ii) KT is the natural closure for the **collisional branch (I ≳ 0.3)** that μ(I) cannot represent — the fast-impact/ejecta regime flagged in `docs/literature-review.md` — and a future dev_soil_sph constitutive may add it; (iii) KT predicts the normal-stress differences `N₁, N₂` that the dev_soil_sph μ(I) Drucker–Prager omits, telling us quantitatively whether that omission matters at our operating point.
 
 ---
 
@@ -64,7 +64,7 @@ Use the exact `η*`, `γ*` from one canonical reference and cite it (Lun, Savage
 With the pipeline validated:
 - Run the **frictional** production sweep (μ_p = 0.5, e ≈ 0.7) across `I ∈ [1e-4, 0.5]` (≥5 points/decade) per `docs/dem-campaign.md` §3.2.
 - Fit `μ(I) = μ_s + (μ_2 − μ_s)/(I_0/I + 1)` and `Φ(I)`; extract `ρ_c = Φ_max ρ_s` and an effective `K` (separate isotropic-compression run).
-- Emit the calibration file (`docs/dem-campaign.md` §6 YAML). That file is the entire interface to MUD — `MaterialParams` in `mud_constitutive` is populated from it (replacing the `glass_beads_v0()` literature anchors).
+- Emit the calibration file (`docs/dem-campaign.md` §6 YAML). That file is the entire interface to dev_soil_sph — `MaterialParams` in `mud_constitutive` is populated from it (replacing the `glass_beads_v0()` literature anchors).
 
 ---
 
@@ -80,4 +80,4 @@ With the pipeline validated:
 - Jenkins 2007 / Berzi–Jenkins — extended (dense) kinetic theory near jamming.
 - Dunatunga & Kamrin 2015 (our SPH core) — uses Jenkins–Berzi KT to justify the stress-free separation.
 
-*Drafted 2026-06-16. Companions: `docs/dem-campaign.md` (spec), `docs/dem-campaign-dirt.md` (DIRT/LAMMPS mapping), `docs/physics-design.md` (what MUD does with the fit).*
+*Drafted 2026-06-16. Companions: `docs/dem-campaign.md` (spec), `docs/dem-campaign-dirt.md` (DIRT/LAMMPS mapping), `docs/physics-design.md` (what dev_soil_sph does with the fit).*
