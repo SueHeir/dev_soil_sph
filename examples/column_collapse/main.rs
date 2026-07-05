@@ -172,7 +172,51 @@ fn main() {
     let height_ok = (hinf_lo..=hinf_hi).contains(&hinf_n);
     let arrested = max_speed < 1.0; // deposit at rest (<< sound speed ~50 m/s)
     let bounded = max_speed < 5.0 && max_t < 1.0;
-    if runout_ok && height_ok && arrested && bounded {
+    // The reference-band verdict: does this deposit reproduce the Lube/Lajeunesse
+    // experimental run-out AND deposit-height scaling at a=2?
+    let matches_scaling = runout_ok && height_ok;
+
+    // ── Negative control (declarative) ───────────────────────────────────────
+    // A validation is only trustworthy if it is *capable of failing*. The config
+    // may declare `[validation] expect = "reject"` — a deliberately-wrong
+    // material (e.g. an over-frictional / cohesive column, μ ≫ real granular)
+    // that should NOT reproduce the experimental scaling. In that mode we INVERT
+    // the verdict: this run PASSES iff the reference band correctly REJECTS it
+    // (run-out or height leaves the cited envelope), and FAILS iff the wrong
+    // physics slipped through the band (which would prove the gate is vacuous).
+    // Anything other than "reject" (incl. absent) is a normal positive check.
+    let expect_reject = app
+        .get_resource_ref::<Config>()
+        .and_then(|c| {
+            c.table
+                .get("validation")
+                .and_then(|v| v.as_table())
+                .and_then(|t| t.get("expect"))
+                .and_then(|e| e.as_str())
+                .map(|s| s.to_string())
+        })
+        .as_deref()
+        == Some("reject");
+
+    if expect_reject {
+        println!("\n=== NEGATIVE CONTROL (config declares [validation] expect = \"reject\") ===");
+        if !matches_scaling {
+            let why = if !runout_ok { "run-out" } else { "deposit height" };
+            println!(
+                "PASS: reference band correctly REJECTED the deliberately-wrong material \
+                 ({why} out of envelope: runout {runout_n:.2} want [{runout_lo:.2},{runout_hi:.2}], \
+                 height {hinf_n:.2} want [{hinf_lo:.2},{hinf_hi:.2}]).\n\
+                 The Lube/LSP gate is falsifiable — it fails on non-granular physics."
+            );
+        } else {
+            eprintln!(
+                "FAIL: negative control was NOT rejected — wrong physics landed INSIDE the \
+                 cited band (runout {runout_n:.2} in [{runout_lo:.2},{runout_hi:.2}], \
+                 height {hinf_n:.2} in [{hinf_lo:.2},{hinf_hi:.2}]). The gate is vacuous."
+            );
+            std::process::exit(1);
+        }
+    } else if matches_scaling && arrested && bounded {
         println!(
             "PASS: run-out {runout_n:.2} and height {hinf_n:.2} match the Lube 2005 / LSP 2011\n\
              2-D column-collapse scalings; deposit arrested and bounded"

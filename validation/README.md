@@ -112,6 +112,36 @@ Each run also asserts the deposit **arrested** (max speed < 1 m/s) and stayed
 **bounded** (granular T < 1), so "matches the scaling" cannot be reached via a
 blow-up.
 
+### Negative control — *the gate is capable of failing*
+
+A pass band a model already sits inside proves nothing unless the band can also
+**reject** a model that is wrong: an always-green check is not a validation. The
+falsifiability control is `column_collapse/config_negctl.toml` — **identical**
+geometry, resolution and integration to config `a`, but with an over-frictional /
+cohesive material (`μ_s = 2.0, μ_2 = 2.5`; friction angle ≈ 63°–68°, far above the
+~20°–40° of real sand or glass beads). Such a material has a yield stress so large
+the column barely slumps, so it should *not* reproduce the Lube/Lajeunesse run-out.
+
+The config declares `[validation] expect = "reject"`, which tells
+`column_collapse/main.rs` to **invert** its verdict: the run PASSES iff the *same*
+`[2.40, 3.60]` / `[0.8, 1.7]` band that configs a/b/c sit inside now **rejects**
+this material, and FAILS iff the wrong physics slips through the band.
+
+| Case | material | run-out `(L∞−L0)/L0` | height `H∞/L0` | band verdict | run result |
+|---|---|---|---|---|---|
+| positive (`a`) | real granular `μ_s=0.38, μ_2=0.64` | `2.50` ∈ [2.40, 3.60] | `1.49` ∈ [0.8, 1.7] | **accept** | PASS |
+| **negative** (`negctl`) | over-frictional `μ_s=2.0, μ_2=2.5` | `−0.10` ✗ (< 2.40) | `1.90` ✗ (> 1.70) | **reject** | PASS (rejected) |
+
+The negative control leaves the band on **both** axes (run-out under-shoots by the
+full envelope, height over-shoots) — an unambiguous rejection, not a marginal one.
+As a guard against the inversion being trivially green, running the *real* material
+with `expect = "reject"` **fails** (`rc = 1`, "wrong physics landed INSIDE the band …
+the gate is vacuous"): the control only passes because the band genuinely
+discriminates real granular friction from wrong friction.
+
+`validation/run.sh` runs this control alongside a/b/c, so the checked-in gate is
+falsifiable by construction.
+
 ---
 
 ## Demoted demos (NOT part of the validation set)

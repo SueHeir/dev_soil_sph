@@ -1,0 +1,94 @@
+# Granular column collapse — NEGATIVE CONTROL (falsifiability check).
+#
+# Identical geometry / resolution / integration to config_a.toml (aspect ratio
+# a = H0/L0 = 2), but the material friction is set FAR above any real granular
+# medium: mu_s = 2.0, mu_2 = 2.5  (friction angle ≈ 63°–68°, vs. the ~20°–40°
+# of sand/glass beads). Such an over-frictional / cohesive column has a yield
+# stress so large it barely slumps — it does NOT reproduce the Lube 2005 /
+# Lajeunesse 2005 run-out scaling.
+#
+# The [validation] expect = "reject" key (read by column_collapse/main.rs) INVERTS
+# the pass/fail logic for this run: it PASSES iff the SAME reference band that the
+# physical configs (a/b/c) sit inside now correctly REJECTS this wrong material
+# (run-out or deposit height leaves the cited envelope), and FAILS iff the wrong
+# physics somehow lands inside the band (which would prove the gate is vacuous).
+#
+# This is the falsifiable "capable of failing" control that turns column_collapse
+# from a green-by-construction demo into a real validation gate.
+
+[comm]
+processors_x = 1
+processors_y = 1
+processors_z = 1
+
+[domain]
+x_low = -0.15
+x_high = 0.15
+y_low = 0.0
+y_high = 0.015          # ≥ 2h so the periodic y-images form a full (2D-uniform) bulk
+z_low = -0.015
+z_high = 0.20
+boundary_x = "fixed"
+boundary_y = "periodic"
+boundary_z = "fixed"
+
+[neighbor]
+newton = false
+skin_fraction = 1.2
+bin_size = 0.02
+
+[gravity]
+gx = 0.0
+gy = 0.0
+gz = -9.81
+
+# Declarative negative-control flag: this run must be REJECTED by the reference
+# band, not accepted. main.rs inverts its verdict when this is present.
+[validation]
+expect = "reject"
+reason = "over-frictional material (mu_s=2.0, mu_2=2.5, friction angle ~63-68deg) is not real granular media and must not reproduce the Lube/Lajeunesse run-out scaling"
+
+[mud]
+[[mud.materials]]
+name = "glass"
+mu_s = 2.0              # NEGATIVE CONTROL: ≫ real granular (~0.38). Column barely slumps.
+mu_2 = 2.5              # NEGATIVE CONTROL: ≫ real granular (~0.64).
+i0 = 0.28
+rho_s = 2500.0
+rho_c = 1500.0
+bulk_modulus = 3.75e6
+poisson = 0.3
+d = 0.5e-3
+restitution = 0.7
+
+# Frozen floor: 3 layers across the run-out span.
+[[mud.insert]]
+material = "glass"
+region_min = [-0.13, 0.0, -0.015]
+region_max = [0.13, 0.015, 0.0]
+spacing = 0.005
+frozen = true
+
+# The column: half-width r0 = 0.025, height H0 = 0.05 → aspect ratio a = 2.
+[[mud.insert]]
+material = "glass"
+region_min = [-0.025, 0.0, 0.0]
+region_max = [0.025, 0.015, 0.05]
+spacing = 0.005
+initial_temperature = 1.0e-5
+
+[output]
+dir = "examples/column_collapse/res_negctl"
+
+[dump]
+interval = 1000
+format = "lammps"       # .lammpstrj — OVITO-native
+
+[thermo]
+columns = ["step", "atoms", "ke"]
+
+[[run]]
+name = "collapse"
+steps = 10000
+thermo = 2000
+dt = 2.5e-5
