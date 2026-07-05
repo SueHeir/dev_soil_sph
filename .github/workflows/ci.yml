@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+
+jobs:
+  test:
+    name: build + test + validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout dev_soil_sph
+        uses: actions/checkout@v4
+        with:
+          path: dev_soil_sph
+
+      - name: Checkout grass sibling
+        uses: actions/checkout@v4
+        with:
+          repository: SueHeir/grass
+          path: grass
+
+      - name: Checkout soil sibling
+        uses: actions/checkout@v4
+        with:
+          repository: SueHeir/soil
+          path: soil
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: dev_soil_sph -> target
+
+      - name: Build workspace
+        working-directory: dev_soil_sph
+        run: cargo build --workspace --all-targets
+
+      - name: Test workspace
+        working-directory: dev_soil_sph
+        run: cargo test --workspace
+
+      - name: Run validation script
+        working-directory: dev_soil_sph
+        run: validation/run.sh
