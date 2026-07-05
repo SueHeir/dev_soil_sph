@@ -46,7 +46,8 @@ artifact, not physics.
 | Check | Criterion | Measured |
 |---|---|---|
 | Rest state (no gravity, periodic lattice) | max speed → 0 | `1.4e-15 m/s` ✓ |
-| Hydrostatic gradient | `dp/dz` in `[0.7, 1.3] × (−ρg)` | ratio `0.821` ✓ |
+| Hydrostatic gradient | `dp/dz` in `[0.7, 1.3] × (−ρg)` | ratio `0.8208` ✓ |
+| Hydrostatic gradient regression | ratio `≥ 0.8208` (target `1.0`; raise as the model improves) | ratio `0.8208` ✓ |
 | **No tensile instability** (Bui 2008) | `p_min ≥ −0.5% · ρgH` (compressive everywhere) | `p_min = +8.2 Pa` ✓ |
 | **No clumping / voids** (Bui 2008) | density spread `(ρ_max−ρ_min)/ρ < 2%` | `0.016%` ✓ |
 
@@ -55,6 +56,13 @@ field is tight to 1 part in 6000 — MUD's kernel/EOS combination does not trip 
 tensile instability on this problem, so no artificial-stress term is needed here.
 (A code that *did* trip it would show negative `p_min` and a wide density spread,
 and this example would exit non-zero.)
+
+The broad `[0.7, 1.3]` hydrostatic band is the external-reference validation
+window. It is intentionally not the regression guard: today the fitted pressure
+gradient is still low (`dp/dz / -ρg = 0.8208`, about an 18% under-prediction), so
+`hydrostatic_column` also asserts a ratchet floor of `0.8208`. That floor should
+only move upward toward the physical target `1.0` as the SPH pressure-gradient
+accuracy improves.
 
 ---
 

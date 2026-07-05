@@ -28,6 +28,8 @@ fn main() {
 
     const G: f64 = 9.81;
     const RHO_REF: f64 = 1500.0;
+    const GRADIENT_RATIO_REGRESSION_FLOOR: f64 = 0.8208;
+    const GRADIENT_RATIO_TARGET: f64 = 1.0;
 
     // Collect fluid particles (non-boundary): (z, pressure, density, speed).
     let mut fluid: Vec<(f64, f64, f64, f64)> = Vec::new();
@@ -131,7 +133,8 @@ fn main() {
 
     println!(
         "\nsettled: {settled} (max speed {max_speed_fluid:.3e})\n\
-         dp/dz = {slope:.1} Pa/m   expected −ρg = {expected:.1} Pa/m   ratio = {slope_ratio:.3}\n\
+         dp/dz = {slope:.1} Pa/m   expected −ρg = {expected:.1} Pa/m   ratio = {slope_ratio:.4}\n\
+         regression: dp/dz ratio >= {GRADIENT_RATIO_REGRESSION_FLOOR:.4} (target {GRADIENT_RATIO_TARGET:.1})\n\
          tensile stability (Bui 2008): p ∈ [{p_min:.2}, {p_max:.2}] Pa  (want p_min ≥ {:.2})\n\
          clumping (Bui 2008):          ρ spread = {:.3}%  (want < 2%)",
         -p_tol,
@@ -139,14 +142,17 @@ fn main() {
     );
 
     let grad_ok = (0.7..=1.3).contains(&slope_ratio);
-    if settled && grad_ok && no_tension && no_clumping {
+    let grad_regression_ok = slope_ratio >= GRADIENT_RATIO_REGRESSION_FLOOR;
+    if settled && grad_ok && grad_regression_ok && no_tension && no_clumping {
         println!(
             "PASS: hydrostatic gradient dp/dz ≈ −ρg, compressive throughout (no tensile\n\
-             instability), density field tight (no clumping) — Bui 2008 skeptic checks green"
+             instability), density field tight (no clumping), gradient regression floor held\n\
+             — Bui 2008 skeptic checks green"
         );
     } else {
         eprintln!(
-            "FAIL: settled={settled}, grad_ok={grad_ok} (ratio {slope_ratio:.3}, want 0.7–1.3), \
+            "FAIL: settled={settled}, grad_ok={grad_ok} (ratio {slope_ratio:.4}, want 0.7–1.3), \
+             grad_regression_ok={grad_regression_ok} (want >= {GRADIENT_RATIO_REGRESSION_FLOOR:.4}), \
              no_tension={no_tension} (p_min {p_min:.2}), no_clumping={no_clumping} (spread {:.3}%)",
             rho_spread * 100.0
         );
