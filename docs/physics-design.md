@@ -206,7 +206,7 @@ $$\frac{DT}{Dt} = \underbrace{\mathcal{P}}_{\text{production}} - \underbrace{\Ga
   form with harmonic-mean `κ`). The coefficient `κ(Φ,e)` is the **one missing DEM
   measurement** — needs the inhomogeneous (boundary-heated) DIRT rig.
 
-### 11.3 MUD code impact (modular)
+### 11.3 dev_soil_sph code impact (modular)
 
 - **New `MudAtom` column** `temperature` (`#[forward]` — neighbors read `T` for the
   conduction Laplacian and for their `σ_KT`), plus a `#[zero]` accumulator for the
@@ -219,16 +219,16 @@ $$\frac{DT}{Dt} = \underbrace{\mathcal{P}}_{\text{production}} - \underbrace{\Ga
   σ_contact(Φ)` — behind the same pure-function interface (the architecture's payoff:
   this swap touches only the constitutive crate + adds the T systems).
 
-### 11.4 Sequencing & first MUD milestone
+### 11.4 Sequencing & first dev_soil_sph milestone
 
 - **Can build now** (theory-based, no new DEM): `σ_KT`, production, dissipation. The
   **homogeneous Haff-cooling test** (uniform `T_0`, no shear/gravity → `T(t)` decays
-  as Haff's law) needs *neither* `κ` *nor* `σ_contact` → the natural first MUD-side
+  as Haff's law) needs *neither* `κ` *nor* `σ_contact` → the natural first dev_soil_sph-side
   `T` milestone, analogous to rest_state/hydrostatic.
 - **Waits on DEM:** `σ_contact(Φ)` (vf campaign, running) and `κ(Φ,e)` (inhomogeneous
   rig, to be built). These swap in like `glass_beads_v0` did for μ(I).
 - **Headline validation:** a DEM de-fluidization transient (hot+dilated bed cools and
-  consolidates) reproduced by MUD — `T`-decay, `Φ`-rise, contact-stress hand-off.
+  consolidates) reproduced by dev_soil_sph — `T`-decay, `Φ`-rise, contact-stress hand-off.
 
 Active-plume / two-phase gas coupling is a later, larger step; dry de-fluidization
 *aftermath* is the tractable, landing-relevant first target.

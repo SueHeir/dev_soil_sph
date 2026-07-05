@@ -1,15 +1,15 @@
-# MUD — Granular SPH on SOIL
+# dev_soil_sph
 
-> **Development-stage research tier.** MUD (`dev_soil_sph`) is a proof-of-concept
+> **Development-stage research tier.** dev_soil_sph is a proof-of-concept
 > granular-SPH physics tier built on the `grass` scheduler and `soil` particle
 > substrate. Treat it as research code: read the docs, run the validation gates,
 > and do not assume production readiness just because an example runs.
 
-MUD implements a meshfree granular-continuum model for dry glass-bead-like
+dev_soil_sph implements a meshfree granular-continuum model for dry glass-bead-like
 materials: SPH density/gradient operators, a density-based tension-free
 separation criterion, and a Dunatunga-Kamrin-style elasto-viscoplastic stress
 update with a Jop/GDR MiDi μ(I) Drucker-Prager flow law. It is a sibling physics
-tier to DIRT and POND, not a DEM solver.
+tier to DIRT and dev_soil_peri, not a DEM solver.
 
 Start here:
 
@@ -19,7 +19,7 @@ Start here:
 | [`docs/sph-primer.md`](docs/sph-primer.md) | SPH method primer for this problem. |
 | [`docs/literature-review.md`](docs/literature-review.md) | Source papers and model-family choices. |
 | [`docs/physics-design.md`](docs/physics-design.md) | Governing equations, constitutive law, and parameters. |
-| [`docs/architecture.md`](docs/architecture.md) | How MUD rides the GRASS -> SOIL stack. |
+| [`docs/architecture.md`](docs/architecture.md) | How dev_soil_sph rides the GRASS -> SOIL stack. |
 | [`docs/dem-campaign.md`](docs/dem-campaign.md) | DEM calibration/validation campaign spec. |
 | [`docs/dem-campaign-dirt.md`](docs/dem-campaign-dirt.md) | Mapping the campaign onto DIRT/LAMMPS capabilities. |
 | [`docs/dem-lebc-kt-spec.md`](docs/dem-lebc-kt-spec.md) | LEBC rheometer and kinetic-theory validation brief. |
@@ -64,5 +64,5 @@ experimental or cross-code reference:
 | [`examples/defluidization`](examples/defluidization) | KT-to-contact stress hand-off transient; SPH-CFD seed. |
 
 The distinction matters: demos can prove that machinery executes, while
-validations prove that MUD reproduces a published physical target within a
+validations prove that dev_soil_sph reproduces a published physical target within a
 declared numerical band.

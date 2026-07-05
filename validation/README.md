@@ -1,10 +1,10 @@
-# MUD (dev_sph) validation set
+# dev_soil_sph validation set
 
-A small, **checked-in, skeptic-facing** validation set for the MUD granular-SPH
+A small, **checked-in, skeptic-facing** validation set for the dev_soil_sph granular-SPH
 continuum (μ(I) dense-flow + kinetic-theory collisional branch on `soil`). Every
 entry here recovers an **independent reference** — an experiment, or a different
 continuum/DEM code — with a **numeric pass/fail band quoted from the cited paper**,
-not back-fitted to MUD's own output. If you are a skeptic asking *"does this SPH
+not back-fitted to dev_soil_sph's own output. If you are a skeptic asking *"does this SPH
 code actually reproduce known granular physics, or just run without crashing?"*,
 this directory is the answer.
 
@@ -22,10 +22,10 @@ validation/run.sh            # builds + runs only the validation examples; non-z
 
 ## What counts as "validation" here
 
-A **validation** must (1) compare to something MUD did not itself produce, and
+A **validation** must (1) compare to something dev_soil_sph did not itself produce, and
 (2) fail loudly (process exit ≠ 0) when the number leaves the reference band. A
 **demo** is a self-consistent operator/physics showcase — useful, but it only
-checks MUD against itself, so it is explicitly *excluded* from this set (see
+checks dev_soil_sph against itself, so it is explicitly *excluded* from this set (see
 "Demoted demos" below).
 
 ---
@@ -52,7 +52,7 @@ artifact, not physics.
 | **No clumping / voids** (Bui 2008) | density spread `(ρ_max−ρ_min)/ρ < 2%` | `0.016%` ✓ |
 
 The pressure stays strictly positive from free surface to base and the density
-field is tight to 1 part in 6000 — MUD's kernel/EOS combination does not trip the
+field is tight to 1 part in 6000 — dev_soil_sph's kernel/EOS combination does not trip the
 tensile instability on this problem, so no artificial-stress term is needed here.
 (A code that *did* trip it would show negative `p_min` and a wide density spread,
 and this example would exit non-zero.)
@@ -92,7 +92,7 @@ with, from the literature they cite:
 
 So the **cited experimental envelope at a = 2 is `[2.40, 3.60]`** — that is the
 pass band (`runout_lo`/`runout_hi` in `column_collapse/main.rs`), taken directly
-from the two experimental fits, *not* tuned to MUD. LSP's own μ(I) *continuum*
+from the two experimental fits, *not* tuned to dev_soil_sph. LSP's own μ(I) *continuum*
 over-spreads to 4.40; SPH/discrete fronts under-spread that (LSP §3.1 note that
 μ(I) "systematically underestimate[s] the run-out ... for large aspect ratios,"
 error reaching ~10%), landing back near the experiments.
@@ -111,7 +111,7 @@ band is `H∞/L0 ∈ [0.8, 1.7]`.
 | `c` | 2.5 mm | 2400 | **2.50** | 1.32 | PASS |
 
 Run-out is **resolution-converged** at 2.50 (identical across a 8× particle-count
-range) and sits at the Lube-experiment edge of the cited envelope — i.e. MUD
+range) and sits at the Lube-experiment edge of the cited envelope — i.e. dev_soil_sph
 reproduces the experimental scaling and, as expected for a discrete/SPH front,
 sits *below* the LSP continuum value. Deposit height converges to `1.32 = H∞/L0`,
 squarely on the Lube experimental branch.
@@ -182,7 +182,7 @@ disposable.
 - **Only a = 2 is validated.** A full aspect-ratio sweep (a = 0.5 … ~10) against
   LSP Eqs. (3.1)–(3.2) is the natural next step; this set fixes a = 2 (the
   checked-in configs) as the first gate.
-- **μ(I) under-spreads the dilute front** (LSP §3.1): expect MUD to track the low
+- **μ(I) under-spreads the dilute front** (LSP §3.1): expect dev_soil_sph to track the low
   (experiment) edge of the run-out band, and to need a kinetic-theory front for
   the energetic leading edge at high `a`. That is a known model limitation, not a
   bug in this validation.

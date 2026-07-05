@@ -86,7 +86,7 @@ Target **$I$ from $\sim10^{-4}$ (quasi-static) to $\sim0.5$ (dense-inertial)** â
 For **smooth (frictionless) inelastic spheres** the LEBC stress tensor is analytic from granular kinetic theory (collisional regime), so it validates the DEM stress-measurement pipeline before we trust it in the dense regime where there is no analytic check. Additions to Tier 1:
 - **Record granular temperature** $T = \tfrac13\langle |\mathbf v_i - \bar{\mathbf v}(y_i)|^2\rangle$ (subtract the mean shear profile $\bar v_x = \dot\gamma y$) and the **full stress tensor** (including normal-stress differences $N_1, N_2$), not just $\tau$ and $P$.
 - **Frictionless sub-sweep** ($\mu_p = 0$, $e \in \{0.7, 0.9\}$) compared to the KT closure $p = \rho_s\Phi T[1 + 2(1+e)\Phi g_0]$, $\sigma_{xy} = \eta\dot\gamma$, with the steady-shear energy balance $\sigma_{xy}\dot\gamma = \Gamma$ fixing $T$ (Bagnold scaling). Agreement at moderate $\Phi$; deviation as $\Phi\to\Phi_c$ marks the dense regime.
-- KT also anchors the **collisional branch** ($I\gtrsim 0.3$) that $\mu(I)$ cannot represent (the fast-impact/ejecta regime, `docs/literature-review.md`) and predicts the $N_1,N_2$ that the MUD $\mu(I)$ model omits.
+- KT also anchors the **collisional branch** ($I\gtrsim 0.3$) that $\mu(I)$ cannot represent (the fast-impact/ejecta regime, `docs/literature-review.md`) and predicts the $N_1,N_2$ that the dev_soil_sph $\mu(I)$ model omits.
 
 Full implementation brief (LEBC primitive, measurement, KT formulas): **`docs/dem-lebc-kt-spec.md`**.
 
