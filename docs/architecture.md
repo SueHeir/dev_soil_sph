@@ -34,8 +34,8 @@ GRASS   framework: App / Plugin / Scheduler / IO / MPI / coupling      (no parti
 
 Dependency shape (per crate `Cargo.toml`, copying `dirt`):
 ```toml
-soil_core    = { git = "...SueHeir/soil", branch = "master", default-features = false }
-soil_verlet  = { git = "...SueHeir/soil", branch = "master" }
+soil_core    = { git = "...SueHeir/soil", branch = "main", default-features = false }
+soil_verlet  = { git = "...SueHeir/soil", branch = "main" }
 grass_app    = { git = "...SueHeir/grass", branch = "main" }
 grass_scheduler = { git = "...SueHeir/grass", branch = "main" }
 sph_atom     = { path = "../sph_atom" }
