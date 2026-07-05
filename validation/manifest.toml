@@ -45,6 +45,14 @@ checks = [
   "deposit arrested (max speed < 1 m/s) and bounded (T < 1)",
   "resolution convergence: run-out consistent across configs a/b/c",
 ]
+# Falsifiability / negative control (same example; [validation] expect="reject"
+# inverts the verdict so a PASS here means "band correctly rejected wrong physics").
+negative_control = "examples/column_collapse/config_negctl.toml"
+negative_control_checks = [
+  "over-frictional material (mu_s=2.0, mu_2=2.5; friction angle ~63-68deg) MUST leave the reference band",
+  "measured: run-out (L_inf-L0)/L0 = -0.10 (< 2.40) AND H_inf/L0 = 1.90 (> 1.70) -> REJECTED",
+  "control guard: the SAME real material declared expect=reject FAILS (rc=1) -> gate is not vacuous",
+]
 
 # ── DEMOS (NOT validations) ──────────────────────────────────────────────────
 # Self-consistent operator/physics showcases. They have internal PASS/FAIL smoke

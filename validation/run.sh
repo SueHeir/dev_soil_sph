@@ -35,6 +35,11 @@ run hydrostatic_column examples/hydrostatic_column/config.toml
 run column_collapse    examples/column_collapse/config_a.toml
 run column_collapse    examples/column_collapse/config_b.toml
 run column_collapse    examples/column_collapse/config_c.toml
+# Falsifiability control: an over-frictional material MUST be rejected by the same
+# reference band that a/b/c sit inside. The config declares [validation] expect =
+# "reject"; the example inverts its verdict, so a green here proves the band can
+# fail. (A green would be impossible if the gate were vacuous — see README.)
+run column_collapse    examples/column_collapse/config_negctl.toml
 
 echo "=========================================="
 echo "validation set: $pass passed, $fail failed"
