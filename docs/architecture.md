@@ -24,11 +24,11 @@ GRASS   framework: App / Plugin / Scheduler / IO / MPI / coupling      (no parti
 
 | Our crate | Role | Mirrors |
 |---|---|---|
-| `sph_atom` | `SphAtom` per-particle data column (ρ, deviatoric stress, h, accumulators) + `SphMaterialTable` + particle insertion | `dirt_atom` / `pond_atom` |
+| `sph_atom` | `SphAtom` per-particle data column (ρ, deviatoric stress, h, accumulators) + `SphMaterialTable` + particle insertion | `dirt_atom` / `peri_atom` |
 | `sph_kernel` | Wendland C2 kernel `W`, `∇W`, support radius helpers (pure functions) | (new; trivial, no DEM analog) |
 | `sph_constitutive` | the Dunatunga–Kamrin stress update (`update_stress`), `MaterialParams`, EOS, μ(I) — **pure, substrate-free** so gate #1 is unit-testable in isolation | (new; the §3.3 math) |
-| `sph_physics` | the per-step SOIL systems: density/velocity-gradient pass, calls `sph_constitutive::update_stress` per particle, momentum-force pass | `dirt_granular` / `pond_bond` |
-| `sph_core` | umbrella: re-export, `SphDefaultPlugins` PluginGroup, `prelude` | `dirt_core` / `pond_core` |
+| `sph_physics` | the per-step SOIL systems: density/velocity-gradient pass, calls `sph_constitutive::update_stress` per particle, momentum-force pass | `dirt_granular` / `peri_bond` |
+| `sph_core` | umbrella: re-export, `SphDefaultPlugins` PluginGroup, `prelude` | `dirt_core` / `peri_core` |
 
 **Reused as-is** (method-agnostic, no fork needed): `grass_app`, `grass_scheduler`, `grass_io`, `soil_core`, `soil_verlet`, `soil_print`, `soil_derive`, `dirt_fixes` (gravity / add-force / viscous damping), and `dirt_wall` (walls + the footpad rig — §6). `CorePlugins` (from `dirt_core`, DEM-free) gives us App/IO/domain/neighbor/run/print.
 

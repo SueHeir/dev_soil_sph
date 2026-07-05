@@ -387,7 +387,7 @@ pub fn sph_freeze_boundary(
 }
 
 /// Copy the `[[run]] dt` into `Atom::dt` (the Verlet integrator reads `Atom::dt`,
-/// which otherwise defaults to 1.0 — a catastrophic CFL violation). Mirrors POND's
+/// which otherwise defaults to 1.0 — a catastrophic CFL violation). Mirrors dev_soil_peri's
 /// `set_timestep` / DIRT's `calculate_delta_time`.
 fn sph_set_timestep(mut atoms: ResMut<Atom>, run_config: Res<RunConfig>) {
     let dt = run_config.current_stage(0).dt;
