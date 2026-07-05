@@ -54,6 +54,17 @@ negative_control_checks = [
   "control guard: the SAME real material declared expect=reject FAILS (rc=1) -> gate is not vacuous",
 ]
 
+[[validation]]
+id = "mu_i_return_map"           # plan sec3 dev_sph — rheology closure
+examples = ["simple_shear_mu_i"]
+configs = []                     # self-contained: target constants baked in, no config file
+reference = "Jop, Forterre & Pouliquen 2006, Nature 441:727, DOI 10.1038/nature04801; GDR MiDi 2004, EPJE 14:341"
+checks = [
+  "shear a pressurized sample across a range of inertial numbers I; fit mu(I) = mu_s + (mu_2-mu_s) I/(I+I_0)",
+  "fitted (mu_s, mu_2, I_0) recover the glass-bead target (0.380, 0.640, 0.280) within tolerance",
+  "per-point and RMS residual gates + I-collapse; exit != 0 on any failed check (measured fit: 0.38001, 0.63985, 0.28042, RMS 5.2e-6)",
+]
+
 # ── DEMOS (NOT validations) ──────────────────────────────────────────────────
 # Self-consistent operator/physics showcases. They have internal PASS/FAIL smoke
 # checks but do NOT recover an external reference, so they are excluded from the
