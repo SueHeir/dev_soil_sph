@@ -73,6 +73,28 @@ accuracy improves.
 
 ---
 
+## Validation #2 — Simple shear μ(I) return map · *flow-law recovery*
+
+**Example:** `simple_shear_mu_i`.
+**Reference:** Jop, Forterre & Pouliquen (2006), *Nature* **441**:727,
+DOI [10.1038/nature04801](https://doi.org/10.1038/nature04801), and GDR MiDi
+(2004), *EPJE* **14**:341.
+
+The example sweeps inertial number `I`, fits
+`μ(I) = μ_s + (μ_2−μ_s)·I/(I+I_0)` to the measured return-map stress ratios, and
+compares the fit against the cited glass-bead constants. Its committed graph is
+embedded in the example README:
+[`examples/simple_shear_mu_i/plots/mu_i_recovery.png`](../examples/simple_shear_mu_i/plots/mu_i_recovery.png).
+
+| Check | Criterion | Measured |
+|---|---|---|
+| Fitted constants | `(μ_s, μ_2, I_0)` within 2% of `(0.380, 0.640, 0.280)` | `(0.38001, 0.63985, 0.28042)` ✓ |
+| Point residuals | max `|μ_measured−μ_target| ≤ 5×10⁻³` | `1.87×10⁻⁴` ✓ |
+| Fit residual | RMS `≤ 2×10⁻³` | `5.17×10⁻⁶` ✓ |
+| I-collapse | same `I` at different pressure agrees within `5×10⁻³` | `1.62×10⁻³` ✓ |
+
+---
+
 ## Validation #3 — Granular column collapse (a/b/c) · *run-out & deposit*
 
 **Example:** `column_collapse` (configs `a`, `b`, `c` — a resolution study at
