@@ -6,13 +6,13 @@ license.workspace = true
 description = "dev_soil_sph — umbrella crate: CorePlugins, SphDefaultPlugins, prelude. Depend on this."
 
 [dependencies]
-soil_core = { git = "ssh://git@192.168.0.170:2222/SueHeir/soil.git", branch = "main", default-features = false }
-soil_print = { git = "ssh://git@192.168.0.170:2222/SueHeir/soil.git", branch = "main" }
-soil_verlet = { git = "ssh://git@192.168.0.170:2222/SueHeir/soil.git", branch = "main" }
-soil_derive = { git = "ssh://git@192.168.0.170:2222/SueHeir/soil.git", branch = "main" }
-grass_app = { git = "ssh://git@192.168.0.170:2222/SueHeir/grass.git", branch = "main" }
-grass_scheduler = { git = "ssh://git@192.168.0.170:2222/SueHeir/grass.git", branch = "main" }
-grass_derive = { git = "ssh://git@192.168.0.170:2222/SueHeir/grass.git", branch = "main" }
+soil_core = { git = "https://github.com/SueHeir/soil.git", branch = "main", default-features = false }
+soil_print = { git = "https://github.com/SueHeir/soil.git", branch = "main" }
+soil_verlet = { git = "https://github.com/SueHeir/soil.git", branch = "main" }
+soil_derive = { git = "https://github.com/SueHeir/soil.git", branch = "main" }
+grass_app = { git = "https://github.com/SueHeir/grass.git", branch = "main" }
+grass_scheduler = { git = "https://github.com/SueHeir/grass.git", branch = "main" }
+grass_derive = { git = "https://github.com/SueHeir/grass.git", branch = "main" }
 sph_kernel = { path = "../sph_kernel" }
 sph_constitutive = { path = "../sph_constitutive" }
 sph_atom = { path = "../sph_atom" }

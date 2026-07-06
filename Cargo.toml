@@ -11,7 +11,7 @@ sph_core = { path = "crates/sph_core" }
 # Pure constitutive core — used directly by the `simple_shear_mu_i` element test,
 # which drives the return map in isolation (no App / substrate).
 sph_constitutive = { path = "crates/sph_constitutive" }
-soil_deform = { git = "ssh://git@192.168.0.170:2222/SueHeir/soil.git", branch = "main" }
+soil_deform = { git = "https://github.com/SueHeir/soil.git", branch = "main" }
 
 [[example]]
 name = "rest_state"
@@ -55,31 +55,6 @@ codegen-units = 1
 # Build against the local grass checkout (mirrors DIRT) — pins the framework to
 # the working local tree. Relative sibling path so it is portable across hosts
 # (macOS/Linux): assumes grass is checked out beside this repo (e.g. ~/projects/grass).
-[patch."ssh://git@192.168.0.170:2222/SueHeir/grass.git"]
-grass_app       = { path = "../grass/crates/grass_app" }
-grass_derive    = { path = "../grass/crates/grass_derive" }
-grass_io        = { path = "../grass/crates/grass_io" }
-grass_mpi       = { path = "../grass/crates/grass_mpi" }
-grass_multi     = { path = "../grass/crates/grass_multi" }
-grass_scheduler = { path = "../grass/crates/grass_scheduler" }
-
-# Build against the local `soil` checkout to pick up the triclinic / Lees-Edwards-shear
-# work, so dev_soil_sph can shear with soil_deform. Relative sibling path so it is portable across
-# hosts (macOS/Linux): assumes soil is checked out beside this repo (e.g. ~/projects/soil).
-# (The GitHub-pinned `soil` dep targets branch `master`, which does not exist upstream, so
-# the local checkout is authoritative until that is reconciled.)
-[patch."ssh://git@192.168.0.170:2222/SueHeir/soil.git"]
-soil_core   = { path = "../soil/crates/soil_core" }
-soil_derive = { path = "../soil/crates/soil_derive" }
-soil_verlet = { path = "../soil/crates/soil_verlet" }
-soil_print  = { path = "../soil/crates/soil_print" }
-soil_deform = { path = "../soil/crates/soil_deform" }
-# NOTE: dev_soil_sph's crate deps (sph_atom/sph_physics/sph_core) and root `soil_deform`
-# were repointed from the (dead-on-this-fleet) github.com URLs to the Gitea
-# primary remote, mirroring soil's own "repoint to Gitea" change. The grass patch
-# above now serves BOTH dev_soil_sph's grass deps and the grass deps the local `soil`
-# crates pull in, so there is exactly one `grass`/`soil` version in the graph.
-
 [[example]]
 name = "conduction_test"
 path = "examples/conduction_test/main.rs"
