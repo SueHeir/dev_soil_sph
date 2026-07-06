@@ -8,3 +8,6 @@ examples/*/dump/
 **/*.vtp
 examples/*/res_*/
 **/profile.csv
+
+# local knowledge-graph tooling output
+graphify-out/
