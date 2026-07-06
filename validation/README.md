@@ -140,6 +140,12 @@ this material, and FAILS iff the wrong physics slips through the band.
 | positive (`a`) | real granular `μ_s=0.38, μ_2=0.64` | `2.50` ∈ [2.40, 3.60] | `1.49` ∈ [0.8, 1.7] | **accept** | PASS |
 | **negative** (`negctl`) | over-frictional `μ_s=2.0, μ_2=2.5` | `−0.10` ✗ (< 2.40) | `1.90` ✗ (> 1.70) | **reject** | PASS (rejected) |
 
+![column-collapse measured-vs-reference bands](../examples/column_collapse/plots/column_collapse_reference_bands.png)
+
+The committed graph is regenerated from the example-emitted deposit profiles and
+shows the positive cases inside the reference bands and the negative control
+outside them.
+
 The negative control leaves the band on **both** axes (run-out under-shoots by the
 full envelope, height over-shoots) — an unambiguous rejection, not a marginal one.
 As a guard against the inversion being trivially green, running the *real* material

@@ -1,0 +1,5 @@
+case,spacing,expectation,runout_n,height_n,band_verdict,run_result
+a,5.0 mm,accept,2.50,1.49,accept,PASS
+b,3.3 mm,accept,2.50,1.32,accept,PASS
+c,2.5 mm,accept,2.50,1.32,accept,PASS
+negctl,5.0 mm,reject,-0.10,1.90,reject,PASS
