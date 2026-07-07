@@ -1,17 +1,19 @@
-//! DEMO (not a validation) — machinery showcase, excluded from the dev_sph
-//! validation set (see validation/README.md). Load-bearing seed for the future
-//! SPH-CFD plume-surface coupling; no independent oracle yet.
-//!
 //! Footpad (foundation) — a driven rigid plate penetrating a granular bed.
 //!
-//! Validates the moving-rigid-boundary + reaction-force machinery: the plate is
-//! pinned to a prescribed downward velocity (a footpad penetrating), and we read
-//! the net bed reaction on it via [`SphPlateForce`]. Logs the force–sinkage curve.
+//! This binary remains the direct mechanics run: it drives the frozen plate,
+//! records the bed reaction through [`SphPlateForce`], writes `sinkage.csv`, and
+//! exits non-zero if the moving-boundary machinery does not produce a bounded,
+//! growing upward reaction. The external bearing/sinkage validation lives in
+//! `sweep.py`, which compares the emitted force-sinkage curve against an
+//! independent Bekker/DIRT-DEM reference band and runs a zero-gravity control
+//! that must be rejected.
+//!
 //! Cold bed for now; the de-fluidization-coupled time-dependent bearing (the real
 //! landing observable) builds on this.
 //!
 //! Run:
 //!   cargo run --release --example footpad -- examples/footpad/config.toml
+//!   $BENCH_PYTHON examples/footpad/sweep.py
 //! Then open examples/footpad/dump/ in OVITO (color by speed / pressure).
 
 use sph_core::prelude::*;
@@ -37,10 +39,15 @@ fn main() {
         .add_plugins(SphGravityPlugin);
     app.add_resource(SinkageLog::default());
     // After the freeze (PostForce) has updated SphPlateForce.
-    app.add_update_system(record.after("sph_freeze"), ParticleSimScheduleSet::PostForce);
+    app.add_update_system(
+        record.after("sph_freeze"),
+        ParticleSimScheduleSet::PostForce,
+    );
 
     {
-        let dump = app.get_resource_ref::<DumpRegistry>().expect("DumpRegistry");
+        let dump = app
+            .get_resource_ref::<DumpRegistry>()
+            .expect("DumpRegistry");
         dump.register_scalar("pressure", |a, r| {
             r.expect::<SphAtom>("d").pressure[..a.nlocal as usize].to_vec()
         });
@@ -59,13 +66,18 @@ fn main() {
 
     app.start();
 
-    let plate = app.get_resource_ref::<SphPlateForce>().expect("SphPlateForce");
+    let plate = app
+        .get_resource_ref::<SphPlateForce>()
+        .expect("SphPlateForce");
     let log = app.get_resource_ref::<SinkageLog>().expect("SinkageLog");
     let sinkage = PLATE_Z0 - plate.z;
     let f_z = plate.force[2];
 
     // Write the force–sinkage curve.
-    if let Some(dir) = app.get_resource_ref::<Input>().and_then(|i| i.output_dir.clone()) {
+    if let Some(dir) = app
+        .get_resource_ref::<Input>()
+        .and_then(|i| i.output_dir.clone())
+    {
         let mut s = String::from("sinkage,force_z\n");
         for &(d, f) in &log.0 {
             s.push_str(&format!("{d:.5},{f:.4}\n"));

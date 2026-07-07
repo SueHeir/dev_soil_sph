@@ -1,0 +1,3 @@
+case,expect,exit_code,n,r2,rise_pa,accepted
+positive,accept,0,0.95654279,0.95985683,1577.1667,True
+zero_g,reject,1,0.44238242,0.19697428,0.66666667,False

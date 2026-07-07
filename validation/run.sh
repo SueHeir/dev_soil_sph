@@ -2,13 +2,14 @@
 # dev_soil_sph validation set — one-command, skeptic-facing runner.
 #
 # Builds and runs ONLY the validation examples (rest_state, hydrostatic_column,
-# column_collapse a/b/c, and the μ(I) return-map recovery), each of which asserts
+# column_collapse a/b/c, μ(I) return-map recovery, and footpad bearing/sinkage),
+# each of which asserts
 # a NUMERIC pass/fail against an external reference (Bui 2008 tensile stability;
 # Lube 2005 / Lagrée-Staron-Popinet 2011 run-out & deposit scalings; Jop-Forterre-
 # Pouliquen 2006 / GDR MiDi 2004 μ(I) constants). Any FAIL exits non-zero.
 #
-# The demoted demos (haff_cooling, shear_heating, conduction_test, footpad,
-# defluidization) are intentionally NOT run here — see validation/manifest.toml.
+# The demoted demos (haff_cooling, shear_heating, conduction_test, defluidization)
+# are intentionally NOT run here — see validation/manifest.toml.
 #
 # Usage:  source ~/projects/.build-env && validation/run.sh
 set -uo pipefail
@@ -45,6 +46,20 @@ run_noarg() { # <name>   self-contained example (target constants baked in, no c
   rm -f "$log"
 }
 
+run_script() { # <label> <script>
+  local label="$1" script="$2"
+  echo "── $label  ($script) ─────────────────────────────────"
+  local log; log="$(mktemp)"
+  if "$BENCH_PYTHON" "$script" >"$log" 2>/dev/null; then
+    grep -E "^(PASS|FAIL|===|positive:|zero-g|reference:)" "$log" || echo "  (ran, exit 0 = PASS)"
+    pass=$((pass+1))
+  else
+    grep -E "^(PASS|FAIL|===|positive:|zero-g|reference:)" "$log" || echo "  (no result)"
+    fail=$((fail+1)); echo "  -> FAILED: $label"
+  fi
+  rm -f "$log"
+}
+
 echo "=== dev_sph validation set ==="
 run rest_state         examples/rest_state/config.toml
 run hydrostatic_column examples/hydrostatic_column/config.toml
@@ -61,6 +76,10 @@ run column_collapse    examples/column_collapse/config_negctl.toml
 # Jop-Forterre-Pouliquen 2006 glass-bead constants within tolerance (exit != 0 on
 # fail). Self-contained, so no config file.
 run_noarg simple_shear_mu_i
+# Footpad bearing/sinkage validation: runs the driven SPH footpad, fits the
+# seated loading branch against a Bekker/DIRT DEM reference band, and runs a
+# zero-gravity negative control that must be rejected.
+run_script footpad_bearing_sinkage examples/footpad/sweep.py
 
 echo "=========================================="
 echo "validation set: $pass passed, $fail failed"

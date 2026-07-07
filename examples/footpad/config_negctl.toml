@@ -1,8 +1,7 @@
-# Footpad bearing/sinkage validation case. A driven rigid plate penetrates a
-# granular bed at constant velocity; the binary records net bed reaction vs
-# sinkage, and sweep.py compares the seated loading branch against a Bekker/DIRT
-# DEM pressure-sinkage reference band. Periodic in x/y (a periodic array of
-# footpads) so no side walls; grains heave up between plates.
+# Footpad negative control. This is intentionally the same geometry/material as
+# config.toml, but with gravity disabled. A bearing-pressure/sinkage gate must
+# reject it: without overburden, the bed does not develop a stable seated loading
+# branch even though the moving plate still exercises the same machinery.
 
 [comm]
 processors_x = 1
@@ -28,7 +27,7 @@ bin_size = 0.02
 [gravity]
 gx = 0.0
 gy = 0.0
-gz = -9.81
+gz = 0.0
 
 [sph]
 [[sph.materials]]
@@ -43,7 +42,6 @@ poisson = 0.3
 d = 0.5e-3
 restitution = 0.7
 
-# Frozen floor.
 [[sph.insert]]
 material = "glass"
 region_min = [-0.06, 0.0, -0.015]
@@ -51,7 +49,6 @@ region_max = [0.06, 0.015, 0.0]
 spacing = 0.005
 frozen = true
 
-# The granular bed.
 [[sph.insert]]
 material = "glass"
 region_min = [-0.06, 0.0, 0.0]
@@ -59,8 +56,6 @@ region_max = [0.06, 0.015, 0.05]
 spacing = 0.005
 rest_density = 1500.0
 
-# The footpad: a rigid plate (3 layers thick, half-width 0.02) driven straight
-# down at 0.05 m/s. Sits just above the bed surface at t=0.
 [[sph.insert]]
 material = "glass"
 region_min = [-0.02, 0.0, 0.05]
@@ -70,7 +65,7 @@ frozen = true
 boundary_velocity = [0.0, 0.0, -0.05]
 
 [output]
-dir = "examples/footpad/data/positive"
+dir = "examples/footpad/data/zero_g"
 
 [dump]
 interval = 400
@@ -80,6 +75,6 @@ format = "lammps"
 columns = ["step", "atoms", "ke"]
 
 [[run]]
-name = "penetrate"
+name = "penetrate_zero_g"
 steps = 12000
 dt = 1.5e-5

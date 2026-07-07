@@ -4,7 +4,8 @@ A small, **checked-in, skeptic-facing** validation set for the dev_soil_sph gran
 continuum (μ(I) dense-flow + kinetic-theory collisional branch on `soil`). Every
 entry here recovers an **independent reference** — an experiment, or a different
 continuum/DEM code — with a **numeric pass/fail band quoted from the cited paper**,
-not back-fitted to dev_soil_sph's own output. If you are a skeptic asking *"does this SPH
+or a cross-code DEM benchmark tied to a cited empirical law, not back-fitted to
+dev_soil_sph's own output. If you are a skeptic asking *"does this SPH
 code actually reproduce known granular physics, or just run without crashing?"*,
 this directory is the answer.
 
@@ -187,6 +188,44 @@ falsifiable by construction.
 
 ---
 
+## Validation #4 — Footpad bearing/sinkage · *shallow plate pressure-sinkage*
+
+**Example:** `footpad`.
+**Reference:** Bekker (1956, 1969) and Wong (2008) pressure-sinkage
+terramechanics, with the independent DIRT DEM `bench_plate_sinkage` benchmark as
+the cross-code exponent-band oracle for this repo's small plate-sinkage case.
+
+The binary itself checks only the moving-boundary mechanics: the driven plate
+penetrates, the bed pushes upward, the force grows, and the run stays bounded.
+The external validation is `examples/footpad/sweep.py`: it runs the SPH case,
+fits the seated loading branch after the first 2 mm of contact seating, and
+compares the excess pressure curve to the Bekker/Wong form
+
+```
+p = (k_c / b + k_phi) z^n
+```
+
+using `data/dirt_bekker_reference.csv` copied from DIRT's independently
+validated DEM plate-sinkage benchmark. The gate clips the DIRT DEM exponent range
+expanded by `0.25` to the granular-soil Bekker band `0.4 <= n <= 1.6`.
+
+| Check | Criterion | Measured |
+|---|---|---|
+| Seated pressure-sinkage exponent | `n in [0.824, 1.600]` | `n = 0.957` ✓ |
+| Power-law fit quality | `R^2 >= 0.90` | `R^2 = 0.960` ✓ |
+| Excess pressure rise | `>= 500 Pa` | `1577 Pa` ✓ |
+| Seated branch monotonicity | no drop larger than 2% sample-to-sample | PASS ✓ |
+| Negative control | zero-gravity case must be rejected by the same oracle | REJECTED ✓ |
+
+![footpad pressure-sinkage validation](../examples/footpad/plots/footpad_bekker_validation.png)
+
+This is a bearing/sinkage validation of the quasi-static loading branch, not a
+claim that the footpad touchdown transient is complete. The early seating samples
+and the binary's monotone/growing reaction check are self-consistency machinery
+checks; only the seated-branch Bekker/DIRT DEM comparison is the external oracle.
+
+---
+
 ## Demoted demos (NOT part of the validation set)
 
 These have internal PASS/FAIL smoke checks but recover **no external reference**,
@@ -198,13 +237,11 @@ their self-checks; they are simply excluded from `validation/` and `run.sh`.
 | `haff_cooling` | granular-T decay ≈ Haff's law (KT branch) | self-consistent operator check, no external data |
 | `shear_heating` | KT shear production → Bagnold `T ∝ γ̇²` | self-consistent operator check |
 | `conduction_test` | SPH Laplacian for `∇·(κ∇T)` | operator unit test (analytic self-check) |
-| `footpad` | driven rigid boundary + bed reaction force | machinery demo — **SPH-CFD seed** |
 | `defluidization` | KT → contact stress hand-off (landing transient) | qualitative transient — **SPH-CFD seed** |
 
-`footpad` and `defluidization` become load-bearing later for the SPH-CFD
-plume-surface coupling (goal `sph-cfd-plume-surface`); they are demoted *now*
-because they do not yet check against an independent oracle, not because they are
-disposable.
+`defluidization` remains load-bearing later for the SPH-CFD plume-surface
+coupling (goal `sph-cfd-plume-surface`); it is demoted *now* because it does not
+yet check against an independent oracle, not because it is disposable.
 
 ---
 
