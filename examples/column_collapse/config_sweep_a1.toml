@@ -1,0 +1,75 @@
+# Column-collapse aspect sweep: a = H0/L0 = 1.
+
+[comm]
+processors_x = 1
+processors_y = 1
+processors_z = 1
+
+[domain]
+x_low = -0.18
+x_high = 0.18
+y_low = 0.0
+y_high = 0.015
+z_low = -0.015
+z_high = 0.10
+boundary_x = "fixed"
+boundary_y = "periodic"
+boundary_z = "fixed"
+
+[neighbor]
+newton = false
+skin_fraction = 1.2
+bin_size = 0.02
+
+[gravity]
+gx = 0.0
+gy = 0.0
+gz = -9.81
+
+[validation]
+aspect_ratio = 1.0
+expect = "outside_reference"
+reason = "current shallow-column SPH/free-surface discretization under-runs Lube/Lajeunesse Eq.3.1; keep this quantified as a declared limitation instead of loosening the band"
+
+[sph]
+[[sph.materials]]
+name = "glass"
+mu_s = 0.38
+mu_2 = 0.64
+i0 = 0.28
+rho_s = 2500.0
+rho_c = 1500.0
+bulk_modulus = 3.75e6
+poisson = 0.3
+d = 0.5e-3
+restitution = 0.7
+
+[[sph.insert]]
+material = "glass"
+region_min = [-0.16, 0.0, -0.015]
+region_max = [0.16, 0.015, 0.0]
+spacing = 0.005
+frozen = true
+
+[[sph.insert]]
+material = "glass"
+region_min = [-0.025, 0.0, 0.0]
+region_max = [0.025, 0.015, 0.025]
+spacing = 0.005
+initial_temperature = 1.0e-5
+
+[output]
+dir = "examples/column_collapse/res_sweep_a1"
+
+[dump]
+interval = 1000
+format = "lammps"
+
+[thermo]
+columns = ["step", "atoms", "ke"]
+
+[[run]]
+name = "collapse"
+steps = 30000
+thermo = 2000
+dt = 2.5e-5

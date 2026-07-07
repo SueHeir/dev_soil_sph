@@ -298,6 +298,7 @@ dependencies = [
  "soil_deform",
  "sph_constitutive",
  "sph_core",
+ "toml",
 ]
 
 [[package]]

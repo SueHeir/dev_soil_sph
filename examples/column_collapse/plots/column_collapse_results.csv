@@ -1,5 +1,7 @@
-case,spacing,expectation,runout_n,height_n,band_verdict,run_result
-a,5.0 mm,accept,2.50,1.49,accept,PASS
-b,3.3 mm,accept,2.50,1.32,accept,PASS
-c,2.5 mm,accept,2.50,1.32,accept,PASS
-negctl,5.0 mm,reject,-0.10,1.90,reject,PASS
+case,config,aspect,expectation,runout_n,runout_lo,runout_hi,height_n,height_lo,height_hi,band_verdict,run_result
+a=0.5,config_sweep_a0p5.toml,0.50,outside_reference,0.10,0.60,1.10,0.45,0.38,0.62,reject,PASS
+a=1,config_sweep_a1.toml,1.00,outside_reference,0.90,1.20,2.20,0.83,0.75,1.25,reject,PASS
+a=2,config_a.toml,2.00,accept,2.50,2.40,3.60,1.49,0.80,1.70,accept,PASS
+a=3,config_sweep_a3.toml,3.00,accept,4.10,3.95,6.60,1.82,0.95,2.02,accept,PASS
+a=6,config_sweep_a6.toml,6.00,accept,8.70,6.27,13.20,2.19,1.22,2.66,accept,PASS
+a=2 neg,config_negctl.toml,2.00,reject,-0.10,2.40,3.60,1.90,0.80,1.70,reject,PASS
