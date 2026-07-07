@@ -35,6 +35,7 @@ non-zero when it leaves the documented pass band.
 | μ(I) return-map recovery | [`examples/simple_shear_mu_i`](examples/simple_shear_mu_i/README.md) | Jop, Forterre & Pouliquen 2006; GDR MiDi 2004 | PASS: fitted `mu_s = 0.38001`, `mu_2 = 0.63985`, `I_0 = 0.28042` against glass-bead constants. |
 | Hydrostatic/rest stability | [`examples/rest_state`](examples/rest_state), [`examples/hydrostatic_column`](examples/hydrostatic_column) | Bui, Fukagawa, Sako & Ohno 2008 tensile-instability criterion | PASS: rest state preserved; hydrostatic gradient ratio `0.821`; compressive pressure and no clumping. |
 | Column collapse a/b/c | [`examples/column_collapse`](examples/column_collapse) | Lube/Lajeunesse 2005 via Lagree, Staron & Popinet 2011 | PASS: resolution study at aspect `a = 2` gives run-out `2.50` and height `1.32-1.49`, inside the published band; negative control is rejected. |
+| Footpad bearing/sinkage | [`examples/footpad`](examples/footpad/README.md) | Bekker/Wong pressure-sinkage; independent DIRT DEM plate-sinkage benchmark | PASS: seated branch `n = 0.957`, `R^2 = 0.960`; zero-gravity control is rejected. |
 
 Run the full checked-in validation harness:
 
@@ -60,7 +61,6 @@ experimental or cross-code reference:
 | [`examples/haff_cooling`](examples/haff_cooling) | Kinetic-theory granular-temperature decay smoke check. |
 | [`examples/shear_heating`](examples/shear_heating) | Shear-production / Bagnold steady-state operator showcase. |
 | [`examples/conduction_test`](examples/conduction_test) | SPH Laplacian conduction operator check. |
-| [`examples/footpad`](examples/footpad) | Driven boundary and bed reaction-force machinery; SPH-CFD seed. |
 | [`examples/defluidization`](examples/defluidization) | KT-to-contact stress hand-off transient; SPH-CFD seed. |
 
 The distinction matters: demos can prove that machinery executes, while

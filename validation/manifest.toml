@@ -66,11 +66,27 @@ checks = [
   "per-point and RMS residual gates + I-collapse; exit != 0 on any failed check (measured fit: 0.38001, 0.63985, 0.28042, RMS 5.2e-6)",
 ]
 
+[[validation]]
+id = "footpad_bearing_sinkage"
+examples = ["footpad"]
+configs = [
+  "examples/footpad/config.toml",
+  "examples/footpad/config_negctl.toml",
+]
+reference = "Bekker 1956/1969 and Wong 2008 pressure-sinkage p=(k_c/b+k_phi) z^n, with independent DIRT DEM plate-sinkage benchmark examples/bench_plate_sinkage as the exponent-band oracle"
+checks = [
+  "run the SPH footpad and fit the seated loading branch after 2 mm of contact seating",
+  "excess pressure must follow Bekker/Wong p proportional z^n with R^2 >= 0.90",
+  "fitted n must sit inside the DIRT DEM/Bekker reference gate [0.824, 1.600] (DIRT DEM case range expanded by 0.25 and clipped to the granular-soil Bekker band [0.4, 1.6])",
+  "excess pressure must rise by at least 500 Pa and be nearly monotone over the seated branch",
+  "negative control examples/footpad/config_negctl.toml disables gravity and MUST be rejected by the same oracle",
+]
+
 # ── DEMOS (NOT validations) ──────────────────────────────────────────────────
 # Self-consistent operator/physics showcases. They have internal PASS/FAIL smoke
 # checks but do NOT recover an external reference, so they are excluded from the
-# validation set. footpad + defluidization are the load-bearing seeds for the
-# future SPH-CFD plume-surface coupling (goal sph-cfd-plume-surface).
+# validation set. defluidization remains a load-bearing seed for the future
+# SPH-CFD plume-surface coupling (goal sph-cfd-plume-surface).
 
 [[demo]]
 id = "haff_cooling"
@@ -86,11 +102,6 @@ role = "KT shear-production under Lees-Edwards shear — operator showcase"
 id = "conduction_test"
 example = "conduction_test"
 role = "SPH Laplacian for grad.(kappa grad T) — operator unit check"
-
-[[demo]]
-id = "footpad"
-example = "footpad"
-role = "driven rigid boundary + bed reaction force — SPH-CFD seed"
 
 [[demo]]
 id = "defluidization"
