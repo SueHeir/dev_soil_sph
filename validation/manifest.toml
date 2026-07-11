@@ -34,15 +34,21 @@ checks = [
 id = "column_collapse"           # plan sec3 dev_sph #3
 examples = ["column_collapse"]
 configs = [
+  "examples/column_collapse/config_sweep_a0p5.toml",
+  "examples/column_collapse/config_sweep_a1.toml",
   "examples/column_collapse/config_a.toml",  # spacing 5.0e-3 (coarse)
   "examples/column_collapse/config_b.toml",  # spacing 3.3e-3 (medium)
   "examples/column_collapse/config_c.toml",  # spacing 2.5e-3 (fine)
+  "examples/column_collapse/config_sweep_a3.toml",
+  "examples/column_collapse/config_sweep_a6.toml",
 ]
 reference = "Lube et al. 2005 (PRE 72:041301) & Lajeunesse et al. 2005, via Lagrée-Staron-Popinet 2011, JFM 686:378, DOI 10.1017/jfm.2011.335, Eqs. (3.1)-(3.2)"
-aspect_ratio = 2.0
+aspect_ratios = [0.5, 1.0, 2.0, 3.0, 6.0]
 checks = [
-  "normalized run-out (L_inf-L0)/L0 in [2.40, 3.60] at a=2 (Lube/Lajeunesse envelope, LSP Eq.3.1)",
-  "normalized height H_inf/L0 in [0.8, 1.7] at a=2 (LSP Eq.3.2)",
+  "normalized run-out (L_inf-L0)/L0 against the Lube/Lajeunesse experimental Eq.3.1 envelope; a=2 remains [2.40, 3.60]",
+  "normalized height H_inf/L0 against LSP Eq.3.2 bands; a=2 remains [0.80, 1.70]",
+  "all physical cases are positive checks and fail non-zero on an experimental-band miss; current a=0.5, a=1 and a=6 misses remain red and quantified",
+  "LSP continuum 2.2*a is plotted as a separate diagnostic, never used to broaden the experimental acceptance envelope",
   "deposit arrested (max speed < 1 m/s) and bounded (T < 1)",
   "resolution convergence: run-out consistent across configs a/b/c",
 ]

@@ -12,8 +12,108 @@
 
 use sph_core::prelude::*;
 
-const R0: f64 = 0.025; // initial column half-width  L0
-const H0: f64 = 0.05; // initial column height       H0  (config a = H0/R0 = 2)
+const DEFAULT_R0: f64 = 0.025; // initial column half-width L0 used by checked-in configs
+
+fn value_f64(value: &toml::Value) -> Option<f64> {
+    value
+        .as_float()
+        .or_else(|| value.as_integer().map(|i| i as f64))
+}
+
+fn table_f64(table: &toml::Table, key: &str) -> Option<f64> {
+    table.get(key).and_then(value_f64)
+}
+
+fn array3(table: &toml::Table, key: &str) -> Option<[f64; 3]> {
+    let arr = table.get(key)?.as_array()?;
+    if arr.len() != 3 {
+        return None;
+    }
+    Some([
+        value_f64(&arr[0])?,
+        value_f64(&arr[1])?,
+        value_f64(&arr[2])?,
+    ])
+}
+
+fn column_geometry(config: &Config) -> (f64, f64) {
+    let Some(inserts) = config
+        .table
+        .get("sph")
+        .and_then(|v| v.as_table())
+        .and_then(|sph| sph.get("insert"))
+        .and_then(|v| v.as_array())
+    else {
+        return (DEFAULT_R0, 2.0 * DEFAULT_R0);
+    };
+
+    for insert in inserts {
+        let Some(t) = insert.as_table() else { continue };
+        if t.get("frozen").and_then(|v| v.as_bool()) == Some(true) {
+            continue;
+        }
+        let Some(min) = array3(t, "region_min") else {
+            continue;
+        };
+        let Some(max) = array3(t, "region_max") else {
+            continue;
+        };
+        let r0 = min[0].abs().max(max[0].abs());
+        let h0 = max[2] - min[2];
+        if r0 > 0.0 && h0 > 0.0 {
+            return (r0, h0);
+        }
+    }
+    (DEFAULT_R0, 2.0 * DEFAULT_R0)
+}
+
+fn domain_span(config: &Config) -> f64 {
+    config
+        .table
+        .get("domain")
+        .and_then(|v| v.as_table())
+        .map(|domain| {
+            let x_low = table_f64(domain, "x_low").unwrap_or(-0.15);
+            let x_high = table_f64(domain, "x_high").unwrap_or(0.15);
+            x_low.abs().max(x_high.abs())
+        })
+        .unwrap_or(0.15)
+}
+
+fn expect_reject(config: &Config) -> bool {
+    config
+        .table
+        .get("validation")
+        .and_then(|v| v.as_table())
+        .and_then(|t| t.get("expect"))
+        .and_then(|e| e.as_str())
+        == Some("reject")
+}
+
+fn runout_band(a: f64) -> (f64, f64) {
+    if (a - 2.0).abs() < 1.0e-9 {
+        return (2.40, 3.60);
+    }
+    if a < 2.0 {
+        (1.2 * a, 2.2 * a)
+    } else {
+        // The experimental high-a envelope is the Lube/Lajeunesse range.
+        // LSP's 2.2*a continuum curve is reported separately below; it is not
+        // an experimental tolerance that can turn an experimental miss green.
+        (1.9 * a.powf(2.0 / 3.0), 2.3 * a.powf(2.0 / 3.0))
+    }
+}
+
+fn height_band(a: f64) -> (f64, f64) {
+    if (a - 2.0).abs() < 1.0e-9 {
+        return (0.80, 1.70);
+    }
+    if a < 2.0 {
+        (0.75 * a, 1.25 * a)
+    } else {
+        (0.65 * a.powf(0.35), 1.30 * a.powf(0.40))
+    }
+}
 
 fn main() {
     let mut app = App::new();
@@ -53,16 +153,21 @@ fn main() {
 
     // ── Analyze the deposit ──────────────────────────────────────────────────
     let atoms = app.get_resource_ref::<Atom>().expect("Atom");
-    let registry = app.get_resource_ref::<AtomDataRegistry>().expect("registry");
+    let registry = app
+        .get_resource_ref::<AtomDataRegistry>()
+        .expect("registry");
     let sph = registry.expect::<SphAtom>("collapse post-check");
     let n = atoms.nlocal as usize;
 
-    // Deposit profile on a RESOLUTION-INDEPENDENT grid: fixed bin width over a
-    // fixed span, surface height (max z) per bin. This is the shape we compare.
+    // Deposit profile on a RESOLUTION-INDEPENDENT grid: fixed bin width over the
+    // declared domain span, surface height (max z) per bin.
     const DX_BIN: f64 = 0.005; // fixed physical bin width
-    const SPAN: f64 = 0.14; // half-width of the binned region (covers the floor)
     const H_TOE: f64 = 0.005; // deposit-edge height threshold (robust runout)
-    let nbins = (2.0 * SPAN / DX_BIN) as usize;
+    let config = app.get_resource_ref::<Config>().expect("Config");
+    let (r0, h0) = column_geometry(&config);
+    let a = h0 / r0;
+    let span = domain_span(&config) - DX_BIN; // keep profile bins away from fixed x walls
+    let nbins = (2.0 * span / DX_BIN) as usize;
 
     let mut profile = vec![0.0f64; nbins];
     let mut front_reach = 0.0f64; // max |x| of any fluid particle (incl. stragglers)
@@ -76,13 +181,13 @@ fn main() {
         n_fluid += 1;
         let x = atoms.pos[i][0];
         front_reach = front_reach.max(x.abs());
-        let b = (((x + SPAN) / DX_BIN) as usize).min(nbins - 1);
+        let b = (((x + span) / DX_BIN) as usize).min(nbins - 1);
         profile[b] = profile[b].max(atoms.pos[i][2]);
         let v = atoms.vel[i];
         max_speed = max_speed.max((v[0] * v[0] + v[1] * v[1] + v[2] * v[2]).sqrt());
         max_t = max_t.max(sph.temperature[i]);
     }
-    let bin_x = |b: usize| -> f64 { -SPAN + (b as f64 + 0.5) * DX_BIN };
+    let bin_x = |b: usize| -> f64 { -span + (b as f64 + 0.5) * DX_BIN };
     let h_max = profile.iter().cloned().fold(0.0, f64::max);
     // Robust runout = furthest |x| where the deposit is still ≥ H_TOE thick.
     let toe = (0..nbins)
@@ -90,12 +195,15 @@ fn main() {
         .map(|b| bin_x(b).abs())
         .fold(0.0, f64::max);
     let h_at = |frac: f64| -> f64 {
-        let b = (((frac * toe + SPAN) / DX_BIN) as usize).min(nbins - 1);
+        let b = (((frac * toe + span) / DX_BIN) as usize).min(nbins - 1);
         profile[b]
     };
 
     // Write the profile CSV (x, h) for overlay vs DEM / between resolutions.
-    if let Some(dir) = app.get_resource_ref::<Input>().and_then(|i| i.output_dir.clone()) {
+    if let Some(dir) = app
+        .get_resource_ref::<Input>()
+        .and_then(|i| i.output_dir.clone())
+    {
         let mut s = String::from("x,h\n");
         for b in 0..nbins {
             s.push_str(&format!("{:.5},{:.5}\n", bin_x(b), profile[b]));
@@ -114,7 +222,7 @@ fn main() {
                 let mut it = line.split(',');
                 if let (Some(xs), Some(hs)) = (it.next(), it.next()) {
                     if let (Ok(x), Ok(h)) = (xs.trim().parse::<f64>(), hs.trim().parse::<f64>()) {
-                        let b = (((x + SPAN) / DX_BIN) as usize).min(nbins - 1);
+                        let b = (((x + span) / DX_BIN) as usize).min(nbins - 1);
                         refp[b] = refp[b].max(h);
                     }
                 }
@@ -131,36 +239,32 @@ fn main() {
 
     // ── Skeptic reference: Lube 2005 experiment / Lagrée-Staron-Popinet 2011 ──
     // Aspect ratio a = H0/L0. Lagrée, Staron & Popinet (2011), JFM 686:378
-    // (DOI 10.1017/jfm.2011.335), Eq. (3.1), give the experimental 2-D run-out
-    // scaling (L∞−L0)/L0 ≃ λ1·a (a<a0) with, at a=2:
-    //   • Lube et al. 2005 (sand/rice/sugar): λ1≃1.2, λ2≃1.9, 1.8≤a0≤2.8 → 2.40
-    //   • Lajeunesse et al. 2005 (glass beads): λ1≃1.8, a0≃3.0            → 3.60
-    // The cited experimental envelope at a=2 is therefore [2.40, 3.60]. (LSP's
-    // own μ(I) *continuum* over-spreads to 2.2·a = 4.40; discrete/SPH fronts
-    // under-spread that, landing back near the experiments — see LSP §3.1.)
-    let a = H0 / R0; // = 2
-    let runout_n = (toe - R0) / R0; // (L∞−L0)/L0
-    let (runout_lo, runout_hi) = (2.40, 3.60); // Lube ↔ Lajeunesse @ a=2, LSP Eq. 3.1
-
-    // Deposit final height H∞/L0. LSP Eq. (3.2): H∞/L0 ≃ λ3·a (a<a0) / λ4·a^α
-    // (a>a0). At a=2 the cited fits span λ4·a^α from the LSP continuum
-    // (λ4≃0.65, α≃0.35 → 0.83) up to the Lube-experiment branch (λ4≃1, α≃0.4 →
-    // 1.32); with SPH resolution scatter we accept H∞/L0 ∈ [0.8, 1.7].
-    let hinf_n = h_max / R0; // H∞/L0
-    let (hinf_lo, hinf_hi) = (0.8, 1.7);
+    // (DOI 10.1017/jfm.2011.335), Eqs. (3.1)-(3.2), consolidate the Lube and
+    // Lajeunesse experimental scalings plus the LSP continuum fit. Low a uses
+    // λ1*a; high a uses λ2*a^(2/3), while the LSP continuum gives 2.2*a up to
+    // a≈7. Height uses λ4*a^α. The a=2 gate keeps its original experimental
+    // envelope exactly: run-out [2.40,3.60], height [0.80,1.70].
+    let runout_n = (toe - r0) / r0; // (L∞−L0)/L0
+    let (runout_lo, runout_hi) = runout_band(a);
+    let hinf_n = h_max / r0; // H∞/L0
+    let (hinf_lo, hinf_hi) = height_band(a);
 
     println!("\n=== column_collapse result ===");
     println!("fluid particles: {n_fluid}   aspect ratio a = H0/L0 = {a:.2}");
     println!("runout toe (h≥{H_TOE}): {toe:.4} m   front reach (max|x|): {front_reach:.4} m");
     println!(
         "normalized runout (L∞−L0)/L0: {runout_n:.2}   \
-         (Lube/Lajeunesse @a=2: [{runout_lo:.2}, {runout_hi:.2}], LSP 2011 Eq.3.1)"
+         (Lube/Lajeunesse band at this a: [{runout_lo:.2}, {runout_hi:.2}], LSP 2011 Eq.3.1)"
     );
     println!(
-        "normalized height  H∞/L0:     {hinf_n:.2}   (LSP 2011 Eq.3.2 @a=2: [{hinf_lo:.2}, {hinf_hi:.2}])"
+        "normalized height  H∞/L0:     {hinf_n:.2}   (LSP 2011 Eq.3.2 band: [{hinf_lo:.2}, {hinf_hi:.2}])"
     );
-    println!("deposit height:   h(0)={:.4}  h(.5r∞)={:.4}  h(.8r∞)={:.4}  h_max={h_max:.4}",
-        h_at(0.0), h_at(0.5), h_at(0.8));
+    println!(
+        "deposit height:   h(0)={:.4}  h(.5r∞)={:.4}  h(.8r∞)={:.4}  h_max={h_max:.4}",
+        h_at(0.0),
+        h_at(0.5),
+        h_at(0.8)
+    );
     println!("max fluid speed:  {max_speed:.3e} m/s");
     println!("max granular T:   {max_t:.3e} m²/s²  (seed was 1e-5 → grew where it sheared)");
     println!("OVITO frames:     <output>/dump/*.lammpstrj");
@@ -173,35 +277,27 @@ fn main() {
     let arrested = max_speed < 1.0; // deposit at rest (<< sound speed ~50 m/s)
     let bounded = max_speed < 5.0 && max_t < 1.0;
     // The reference-band verdict: does this deposit reproduce the Lube/Lajeunesse
-    // experimental run-out AND deposit-height scaling at a=2?
+    // experimental run-out AND deposit-height scaling at this aspect ratio?
     let matches_scaling = runout_ok && height_ok;
 
     // ── Negative control (declarative) ───────────────────────────────────────
     // A validation is only trustworthy if it is *capable of failing*. The config
-    // may declare `[validation] expect = "reject"` — a deliberately-wrong
+    // may declare `[validation] expect = "reject"` — a deliberately wrong
     // material (e.g. an over-frictional / cohesive column, μ ≫ real granular)
     // that should NOT reproduce the experimental scaling. In that mode we INVERT
     // the verdict: this run PASSES iff the reference band correctly REJECTS it
     // (run-out or height leaves the cited envelope), and FAILS iff the wrong
     // physics slipped through the band (which would prove the gate is vacuous).
     // Anything other than "reject" (incl. absent) is a normal positive check.
-    let expect_reject = app
-        .get_resource_ref::<Config>()
-        .and_then(|c| {
-            c.table
-                .get("validation")
-                .and_then(|v| v.as_table())
-                .and_then(|t| t.get("expect"))
-                .and_then(|e| e.as_str())
-                .map(|s| s.to_string())
-        })
-        .as_deref()
-        == Some("reject");
-
+    let expect_reject = expect_reject(&config);
     if expect_reject {
         println!("\n=== NEGATIVE CONTROL (config declares [validation] expect = \"reject\") ===");
         if !matches_scaling {
-            let why = if !runout_ok { "run-out" } else { "deposit height" };
+            let why = if !runout_ok {
+                "run-out"
+            } else {
+                "deposit height"
+            };
             println!(
                 "PASS: reference band correctly REJECTED the deliberately-wrong material \
                  ({why} out of envelope: runout {runout_n:.2} want [{runout_lo:.2},{runout_hi:.2}], \

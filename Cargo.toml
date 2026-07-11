@@ -12,6 +12,7 @@ sph_core = { path = "crates/sph_core" }
 # which drives the return map in isolation (no App / substrate).
 sph_constitutive = { path = "crates/sph_constitutive" }
 soil_deform = { git = "ssh://git@192.168.0.170:2222/SueHeir/soil.git", branch = "main" }
+toml = "0.8.23"
 
 [[example]]
 name = "rest_state"
