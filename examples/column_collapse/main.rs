@@ -90,16 +90,6 @@ fn expect_reject(config: &Config) -> bool {
         == Some("reject")
 }
 
-fn expect_outside_reference(config: &Config) -> bool {
-    config
-        .table
-        .get("validation")
-        .and_then(|v| v.as_table())
-        .and_then(|t| t.get("expect"))
-        .and_then(|e| e.as_str())
-        == Some("outside_reference")
-}
-
 fn runout_band(a: f64) -> (f64, f64) {
     if (a - 2.0).abs() < 1.0e-9 {
         return (2.40, 3.60);
@@ -107,10 +97,10 @@ fn runout_band(a: f64) -> (f64, f64) {
     if a < 2.0 {
         (1.2 * a, 2.2 * a)
     } else {
-        (
-            1.9 * a.powf(2.0 / 3.0),
-            (2.3 * a.powf(2.0 / 3.0)).max(2.2 * a),
-        )
+        // The experimental high-a envelope is the Lube/Lajeunesse range.
+        // LSP's 2.2*a continuum curve is reported separately below; it is not
+        // an experimental tolerance that can turn an experimental miss green.
+        (1.9 * a.powf(2.0 / 3.0), 2.3 * a.powf(2.0 / 3.0))
     }
 }
 
@@ -292,7 +282,7 @@ fn main() {
 
     // ── Negative control (declarative) ───────────────────────────────────────
     // A validation is only trustworthy if it is *capable of failing*. The config
-    // may declare `[validation] expect = "reject"` — a deliberately-wrong
+    // may declare `[validation] expect = "reject"` — a deliberately wrong
     // material (e.g. an over-frictional / cohesive column, μ ≫ real granular)
     // that should NOT reproduce the experimental scaling. In that mode we INVERT
     // the verdict: this run PASSES iff the reference band correctly REJECTS it
@@ -300,8 +290,6 @@ fn main() {
     // physics slipped through the band (which would prove the gate is vacuous).
     // Anything other than "reject" (incl. absent) is a normal positive check.
     let expect_reject = expect_reject(&config);
-    let expect_outside_reference = expect_outside_reference(&config);
-
     if expect_reject {
         println!("\n=== NEGATIVE CONTROL (config declares [validation] expect = \"reject\") ===");
         if !matches_scaling {
@@ -321,36 +309,6 @@ fn main() {
                 "FAIL: negative control was NOT rejected — wrong physics landed INSIDE the \
                  cited band (runout {runout_n:.2} in [{runout_lo:.2},{runout_hi:.2}], \
                  height {hinf_n:.2} in [{hinf_lo:.2},{hinf_hi:.2}]). The gate is vacuous."
-            );
-            std::process::exit(1);
-        }
-    } else if expect_outside_reference {
-        println!(
-            "\n=== KNOWN LIMITATION (config declares [validation] expect = \"outside_reference\") ==="
-        );
-        if !matches_scaling && arrested && bounded {
-            let runout_gap = if runout_n < runout_lo {
-                runout_n - runout_lo
-            } else if runout_n > runout_hi {
-                runout_n - runout_hi
-            } else {
-                0.0
-            };
-            let height_gap = if hinf_n < hinf_lo {
-                hinf_n - hinf_lo
-            } else if hinf_n > hinf_hi {
-                hinf_n - hinf_hi
-            } else {
-                0.0
-            };
-            println!(
-                "PASS: limitation reproduced and quantified outside the reference band \
-                 (runout gap {runout_gap:+.2}, height gap {height_gap:+.2}); deposit arrested and bounded"
-            );
-        } else {
-            eprintln!(
-                "FAIL: expected this declared limitation to sit outside the reference band while arrested/bounded; \
-                 matches_scaling={matches_scaling}, arrested={arrested}, bounded={bounded}"
             );
             std::process::exit(1);
         }

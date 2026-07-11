@@ -48,18 +48,10 @@ run_noarg() { # <name>   self-contained example (target constants baked in, no c
 echo "=== dev_sph validation set ==="
 run rest_state         examples/rest_state/config.toml
 run hydrostatic_column examples/hydrostatic_column/config.toml
-run column_collapse    examples/column_collapse/config_sweep_a0p5.toml
-run column_collapse    examples/column_collapse/config_sweep_a1.toml
-run column_collapse    examples/column_collapse/config_a.toml
-run column_collapse    examples/column_collapse/config_b.toml
-run column_collapse    examples/column_collapse/config_c.toml
-run column_collapse    examples/column_collapse/config_sweep_a3.toml
-run column_collapse    examples/column_collapse/config_sweep_a6.toml
-# Falsifiability control: an over-frictional material MUST be rejected by the same
-# reference band that a/b/c sit inside. The config declares [validation] expect =
-# "reject"; the example inverts its verdict, so a green here proves the band can
-# fail. (A green would be impossible if the gate were vacuous — see README.)
-run column_collapse    examples/column_collapse/config_negctl.toml
+# Runs every positive aspect-ratio case plus its deliberately wrong-physics
+# control, regenerates the measured-vs-reference graph, and is non-zero if any
+# physical case misses its cited band.  It does not recast a miss as a pass.
+run_script column_collapse_aspect_sweep examples/column_collapse/sweep.py
 # μ(I) return-map recovery: shear a pressurized sample across a range of inertial
 # numbers I and fit (μ_s, μ_2, I_0); the example asserts the fit reproduces the
 # Jop-Forterre-Pouliquen 2006 glass-bead constants within tolerance (exit != 0 on

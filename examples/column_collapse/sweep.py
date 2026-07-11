@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Run the declarative column-collapse aspect sweep and verify its result plot.
 
-Each configuration owns its geometry, material, integration window, and expected
-reference verdict.  The Rust example enforces the Lube/Lajeunesse/LSP bands;
-this driver only orchestrates that checked-in case matrix and regenerates the
-reviewer-facing measured-versus-reference figure.
+The physical cases are all positive experimental checks.  A non-zero exit from
+one is preserved as a non-zero sweep result; the driver still runs every case
+and regenerates the figure so a failure is quantitative rather than hidden.
+Only config_negctl is deliberately inverted: it must be rejected by the same
+external band.
 """
 
 from __future__ import annotations
@@ -29,38 +30,50 @@ CASES = [
 ]
 
 
-def run_case(config: str) -> None:
+def run_case(binary: Path, config: str, expect_success: bool) -> bool:
     print(f"=== {config} ===", flush=True)
-    command = ["cargo", "run", "--release", "--example", "column_collapse", "--", str(HERE / config)]
-    completed = subprocess.run(command, cwd=ROOT)
-    if completed.returncode:
-        raise RuntimeError(f"{config} exited {completed.returncode}")
+    completed = subprocess.run([str(binary), str(HERE / config)], cwd=ROOT)
+    passed = (completed.returncode == 0) == expect_success
+    if not passed:
+        print(f"FAIL: {config} exit={completed.returncode}; expected "
+              f"{'0' if expect_success else 'non-zero'}")
+    return passed
 
 
-def verify_plot_summary() -> None:
+def verify_plot_summary() -> bool:
     summary = HERE / "plots" / "column_collapse_results.csv"
     with summary.open(newline="", encoding="utf-8") as handle:
         rows = list(csv.DictReader(handle))
     if len(rows) != 6:
         raise RuntimeError(f"expected six plotted aspect/control results, found {len(rows)}")
-    failed = [row["case"] for row in rows if row["run_result"] != "PASS"]
-    if failed:
-        raise RuntimeError(f"plot summary reports failed cases: {', '.join(failed)}")
     if not (HERE / "plots" / "column_collapse_reference_bands.png").is_file():
         raise RuntimeError("aspect-sweep reference-band figure was not generated")
+    failed = [row["case"] for row in rows if row["run_result"] != "PASS"]
+    if failed:
+        print("FAIL: external-reference misses in " + ", ".join(failed))
+        return False
+    return True
 
 
 def main() -> int:
     try:
-        for config in CASES:
-            run_case(config)
+        subprocess.run(
+            ["cargo", "build", "--release", "--example", "column_collapse"],
+            cwd=ROOT,
+            check=True,
+        )
+        binary = ROOT / "target" / "release" / "examples" / "column_collapse"
+        case_ok = [run_case(binary, config, config != "config_negctl.toml") for config in CASES]
         subprocess.run([sys.executable, str(HERE / "plot_results.py")], cwd=ROOT, check=True)
-        verify_plot_summary()
+        plot_ok = verify_plot_summary()
     except (OSError, RuntimeError, subprocess.CalledProcessError) as error:
         print(f"CHECKS FAILED: {error}")
         return 1
-    print("ALL CHECKS PASSED: column-collapse aspect sweep and negative control")
-    return 0
+    if all(case_ok) and plot_ok:
+        print("ALL CHECKS PASSED: column-collapse aspect sweep and negative control")
+        return 0
+    print("CHECKS FAILED: positive cases outside their external-reference bands")
+    return 1
 
 
 if __name__ == "__main__":

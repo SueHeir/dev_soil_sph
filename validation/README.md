@@ -129,10 +129,10 @@ with, from the literature they cite:
 | LSP 2011 μ(I) *continuum* (Gerris) | 2.2 | 3.9 (α=0.7) | ≃7 | `2.2·2 = 4.40` |
 
 The **a = 2 gate is unchanged**: the cited experimental envelope remains
-`[2.40, 3.60]` for run-out and `[0.80, 1.70]` for height. Away from `a = 2`, the
-sweep plots and checks the band spanned by the Lube/Lajeunesse fits and the LSP
-continuum fit. This is deliberately a wide published-reference band, not a
-back-fit to dev_soil_sph output.
+`[2.40, 3.60]` for run-out and `[0.80, 1.70]` for height. Away from `a = 2`,
+the run-out acceptance band is the Lube/Lajeunesse experimental envelope alone.
+The LSP continuum prediction is plotted separately as a diagnostic; it is not
+an experimental tolerance and cannot make an experimental miss pass.
 
 Deposit height (LSP Eq. 3.2): `H∞/L0 ≃ λ3·a (a<a0) / λ4·a^α (a>a0)`. The cited
 fits at a=2 span the LSP continuum (`λ4≃0.65, α≃0.35 → 0.83`) up to the Lube
@@ -143,18 +143,16 @@ band is `H∞/L0 ∈ [0.8, 1.7]`.
 
 | Case | expectation | run-out band | measured run-out | height band | measured height | result |
 |---|---|---:|---:|---:|---:|---|
-| `a=0.5` | declared limitation | `[0.60, 1.10]` | `0.10` | `[0.38, 0.62]` | `0.45` | PASS by staying outside |
-| `a=1` | declared limitation | `[1.20, 2.20]` | `0.90` | `[0.75, 1.25]` | `0.83` | PASS by staying outside |
+| `a=0.5` | positive experimental check | `[0.60, 1.10]` | `0.10` | `[0.38, 0.62]` | `0.45` | **FAIL** |
+| `a=1` | positive experimental check | `[1.20, 2.20]` | `0.90` | `[0.75, 1.25]` | `0.83` | **FAIL** |
 | `a=2` | accept | `[2.40, 3.60]` | `2.50` | `[0.80, 1.70]` | `1.49` | PASS |
 | `a=3` | accept | `[3.95, 6.60]` | `4.10` | `[0.95, 2.02]` | `1.82` | PASS |
-| `a=6` | accept | `[6.27, 13.20]` | `8.70` | `[1.22, 2.66]` | `2.19` | PASS |
+| `a=6` | positive experimental check | `[6.27, 7.59]` | `8.70` | `[1.22, 2.66]` | `2.19` | **FAIL** |
 
-The shallow-column cases are not hidden by loosening the band. They declare
-`[validation] expect = "outside_reference"` and pass only because they quantify
-the current limitation outside the published run-out band: `a=0.5` under-runs by
-`0.50 L0`; `a=1` under-runs by `0.30 L0`. The high-aspect case is also explicit:
-`a=6` gives run-out `8.70`, above the Lube/Lajeunesse power-law upper `7.59` but
-below the LSP continuum line `13.20`.
+The shallow cases under-run the experimental run-out band by `0.50 L0` (`a=0.5`)
+and `0.30 L0` (`a=1`).  The high case gives `8.70`, above the experimental upper
+bound `7.59`; the separate LSP continuum line is `13.20`.  Each is a failing
+positive check, so `validation/run.sh` exits non-zero until the model is fixed.
 
 **Measured, resolution study at a = 2:**
 
@@ -190,10 +188,10 @@ this material, and FAILS iff the wrong physics slips through the band.
 
 ![column-collapse measured-vs-reference bands](../examples/column_collapse/plots/column_collapse_reference_bands.png)
 
-The committed graph is regenerated from the example-emitted deposit profiles. It
-shows the accepted cases inside the reference bands, the declared shallow-column
-limitations outside the run-out band, and the negative control outside the `a=2`
-band.
+The committed graph is regenerated from example-emitted deposit profiles. It
+shows measured values against experimental bands, including the red positive
+misses and the rejected negative control.  Thus it exposes rather than masks the
+current limitation.
 
 The negative control leaves the band on **both** axes (run-out under-shoots by the
 full envelope, height over-shoots) — an unambiguous rejection, not a marginal one.
@@ -270,9 +268,9 @@ yet check against an independent oracle, not because it is disposable.
   *band* (linear vs. power-law regime, plus material scatter across sand/rice/
   sugar/beads), which is why the pass window is `[2.40, 3.60]` rather than a
   single number. The band is the *published* scatter, not a loosened tolerance.
-- **The sweep now covers `a = 0.5, 1, 2, 3, 6`, but the shallow-column end is a
-  documented limitation, not a validation success.** The current SPH/free-surface
-  discretization under-runs the Eq. 3.1 run-out band at `a=0.5` and `a=1`.
+- **The sweep now covers `a = 0.5, 1, 2, 3, 6`; it is presently a failing
+  validation, not a claimed successful reproduction.** The current
+  SPH/free-surface discretization under-runs Eq. 3.1 at `a=0.5` and `a=1`.
 - **High `a` is quantified, not hidden.** At `a=6`, dev_soil_sph over-runs the
   Lube/Lajeunesse power-law envelope by `1.11 L0` relative to its upper fit, while
   still under-running the LSP continuum line by `4.50 L0`. The figure keeps both

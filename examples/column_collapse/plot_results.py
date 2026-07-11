@@ -19,8 +19,8 @@ ROOT = Path(__file__).resolve().parent
 PLOTS = ROOT / "plots"
 H_TOE = 0.005
 CASES = [
-    ("a=0.5", "config_sweep_a0p5.toml", "res_sweep_a0p5", "outside_reference"),
-    ("a=1", "config_sweep_a1.toml", "res_sweep_a1", "outside_reference"),
+    ("a=0.5", "config_sweep_a0p5.toml", "res_sweep_a0p5", "accept"),
+    ("a=1", "config_sweep_a1.toml", "res_sweep_a1", "accept"),
     ("a=2", "config_a.toml", "res_a", "accept"),
     ("a=3", "config_sweep_a3.toml", "res_sweep_a3", "accept"),
     ("a=6", "config_sweep_a6.toml", "res_sweep_a6", "accept"),
@@ -45,7 +45,7 @@ def runout_band(a: float) -> tuple[float, float]:
         return 2.40, 3.60
     if a < 2.0:
         return 1.2 * a, 2.2 * a
-    return 1.9 * a ** (2.0 / 3.0), max(2.3 * a ** (2.0 / 3.0), 2.2 * a)
+    return 1.9 * a ** (2.0 / 3.0), 2.3 * a ** (2.0 / 3.0)
 
 
 def height_band(a: float) -> tuple[float, float]:
@@ -87,6 +87,8 @@ def main() -> None:
         run_band = runout_band(aspect)
         h_band = height_band(aspect)
         band_accept = in_band(runout, run_band) and in_band(height, h_band)
+        # Only the deliberately wrong-physics control is inverted.  Every
+        # physical aspect-ratio case is a positive experimental validation.
         passed = band_accept if expectation == "accept" else not band_accept
         rows.append(
             {

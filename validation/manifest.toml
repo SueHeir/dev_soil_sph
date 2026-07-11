@@ -45,11 +45,10 @@ configs = [
 reference = "Lube et al. 2005 (PRE 72:041301) & Lajeunesse et al. 2005, via Lagrée-Staron-Popinet 2011, JFM 686:378, DOI 10.1017/jfm.2011.335, Eqs. (3.1)-(3.2)"
 aspect_ratios = [0.5, 1.0, 2.0, 3.0, 6.0]
 checks = [
-  "normalized run-out (L_inf-L0)/L0 against Lube/Lajeunesse/LSP Eq.3.1 bands; a=2 remains [2.40, 3.60]",
+  "normalized run-out (L_inf-L0)/L0 against the Lube/Lajeunesse experimental Eq.3.1 envelope; a=2 remains [2.40, 3.60]",
   "normalized height H_inf/L0 against LSP Eq.3.2 bands; a=2 remains [0.80, 1.70]",
-  "declared shallow-column limitations: a=0.5 run-out 0.10 vs [0.60,1.10], a=1 run-out 0.90 vs [1.20,2.20] (outside_reference, not band-loosened)",
-  "accepted aspect sweep: a=2 run-out/height 2.50/1.49, a=3 4.10/1.82, a=6 8.70/2.19",
-  "high-a quantitative note: a=6 over Lube/Lajeunesse power-law upper 7.59 but below LSP continuum 13.20",
+  "all physical cases are positive checks and fail non-zero on an experimental-band miss; current a=0.5, a=1 and a=6 misses remain red and quantified",
+  "LSP continuum 2.2*a is plotted as a separate diagnostic, never used to broaden the experimental acceptance envelope",
   "deposit arrested (max speed < 1 m/s) and bounded (T < 1)",
   "resolution convergence: run-out consistent across configs a/b/c",
 ]
