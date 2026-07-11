@@ -146,7 +146,7 @@ band is `H∞/L0 ∈ [0.8, 1.7]`.
 | `a=0.5` | positive experimental check | `[0.60, 1.10]` | `0.10` | `[0.38, 0.62]` | `0.45` | **FAIL** |
 | `a=1` | positive experimental check | `[1.20, 2.20]` | `0.90` | `[0.75, 1.25]` | `0.83` | **FAIL** |
 | `a=2` | accept | `[2.40, 3.60]` | `2.50` | `[0.80, 1.70]` | `1.49` | PASS |
-| `a=3` | accept | `[3.95, 6.60]` | `4.10` | `[0.95, 2.02]` | `1.82` | PASS |
+| `a=3` | accept | `[3.95, 4.78]` | `4.10` | `[0.95, 2.02]` | `1.82` | PASS |
 | `a=6` | positive experimental check | `[6.27, 7.59]` | `8.70` | `[1.22, 2.66]` | `2.19` | **FAIL** |
 
 The shallow cases under-run the experimental run-out band by `0.50 L0` (`a=0.5`)

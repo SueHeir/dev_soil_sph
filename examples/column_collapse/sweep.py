@@ -30,13 +30,15 @@ CASES = [
 ]
 
 
-def run_case(binary: Path, config: str, expect_success: bool) -> bool:
+def run_case(binary: Path, config: str) -> bool:
     print(f"=== {config} ===", flush=True)
     completed = subprocess.run([str(binary), str(HERE / config)], cwd=ROOT)
-    passed = (completed.returncode == 0) == expect_success
+    # The executable owns the control inversion: the wrong-physics config exits
+    # zero only when the external band rejects it.  The driver must therefore
+    # require zero from every listed case, rather than inverting it a second time.
+    passed = completed.returncode == 0
     if not passed:
-        print(f"FAIL: {config} exit={completed.returncode}; expected "
-              f"{'0' if expect_success else 'non-zero'}")
+        print(f"FAIL: {config} exit={completed.returncode}; expected 0")
     return passed
 
 
@@ -63,7 +65,7 @@ def main() -> int:
             check=True,
         )
         binary = ROOT / "target" / "release" / "examples" / "column_collapse"
-        case_ok = [run_case(binary, config, config != "config_negctl.toml") for config in CASES]
+        case_ok = [run_case(binary, config) for config in CASES]
         subprocess.run([sys.executable, str(HERE / "plot_results.py")], cwd=ROOT, check=True)
         plot_ok = verify_plot_summary()
     except (OSError, RuntimeError, subprocess.CalledProcessError) as error:

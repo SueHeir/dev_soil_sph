@@ -125,8 +125,12 @@ def main() -> None:
         ax.fill_between(band_a, band_lo, band_hi, color="#d7ead2", alpha=0.9, label="pass band")
         ax.plot(band_a, band_lo, color="#367c39", linewidth=1.2)
         ax.plot(band_a, band_hi, color="#367c39", linewidth=1.2)
-        colors = ["#2b8cbe" if row["expectation"] == "accept" else "#c75146" for row in rows]
-        ax.scatter(aspects, [float(row[key]) for row in rows], s=78, c=colors, zorder=3)
+        # Colour the observed verdict, not the intended case category: a failed
+        # physical check must be visibly red in the committed evidence.
+        colors = ["#2b8cbe" if row["run_result"] == "PASS" else "#c75146" for row in rows]
+        markers = ["o" if row["expectation"] == "accept" else "s" for row in rows]
+        for aspect, row, color, marker in zip(aspects, rows, colors, markers):
+            ax.scatter(aspect, float(row[key]), s=78, c=color, marker=marker, zorder=3)
         for row in rows:
             ax.annotate(row["case"], (float(row["aspect"]), float(row[key])), xytext=(4, 4),
                         textcoords="offset points", fontsize=8)
@@ -147,6 +151,9 @@ def main() -> None:
     axes[0].set_ylim(0.0, max(14.0, axes[0].get_ylim()[1]))
     axes[1].set_ylim(0.0, max(2.2, axes[1].get_ylim()[1]))
     for ax in axes:
+        ax.scatter([], [], c="#2b8cbe", label="gate PASS")
+        ax.scatter([], [], c="#c75146", label="gate FAIL")
+        ax.scatter([], [], c="#2b8cbe", marker="s", label="negative control")
         ax.legend(loc="upper left", frameon=False, fontsize=8)
 
     fig.suptitle("Column-collapse aspect sweep vs Lube/Lajeunesse/LSP Eqs. 3.1-3.2", fontsize=11)
