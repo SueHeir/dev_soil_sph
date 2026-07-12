@@ -44,7 +44,7 @@ dependencies = [
 [[package]]
 name = "grass_app"
 version = "0.1.0"
-source = "git+https://github.com/SueHeir/grass.git?branch=main#8b32c9327828b9b5c8855207fd2549fce9b0ee99"
+source = "git+https://github.com/SueHeir/grass.git?branch=main#b804e7203a0ecb09d3aa5f1503647ff57da291c1"
 dependencies = [
  "downcast-rs",
  "grass_scheduler",
@@ -53,7 +53,7 @@ dependencies = [
 [[package]]
 name = "grass_derive"
 version = "0.1.0"
-source = "git+https://github.com/SueHeir/grass.git?branch=main#8b32c9327828b9b5c8855207fd2549fce9b0ee99"
+source = "git+https://github.com/SueHeir/grass.git?branch=main#b804e7203a0ecb09d3aa5f1503647ff57da291c1"
 dependencies = [
  "heck",
  "proc-macro2",
@@ -64,7 +64,7 @@ dependencies = [
 [[package]]
 name = "grass_io"
 version = "0.1.0"
-source = "git+https://github.com/SueHeir/grass.git?branch=main#8b32c9327828b9b5c8855207fd2549fce9b0ee99"
+source = "git+https://github.com/SueHeir/grass.git?branch=main#b804e7203a0ecb09d3aa5f1503647ff57da291c1"
 dependencies = [
  "grass_app",
  "grass_derive",
@@ -77,7 +77,7 @@ dependencies = [
 [[package]]
 name = "grass_mpi"
 version = "0.1.0"
-source = "git+https://github.com/SueHeir/grass.git?branch=main#8b32c9327828b9b5c8855207fd2549fce9b0ee99"
+source = "git+https://github.com/SueHeir/grass.git?branch=main#b804e7203a0ecb09d3aa5f1503647ff57da291c1"
 dependencies = [
  "serde",
 ]
@@ -85,7 +85,7 @@ dependencies = [
 [[package]]
 name = "grass_multi"
 version = "0.1.0"
-source = "git+https://github.com/SueHeir/grass.git?branch=main#8b32c9327828b9b5c8855207fd2549fce9b0ee99"
+source = "git+https://github.com/SueHeir/grass.git?branch=main#b804e7203a0ecb09d3aa5f1503647ff57da291c1"
 dependencies = [
  "grass_app",
  "grass_derive",
@@ -97,7 +97,7 @@ dependencies = [
 [[package]]
 name = "grass_scheduler"
 version = "0.1.0"
-source = "git+https://github.com/SueHeir/grass.git?branch=main#8b32c9327828b9b5c8855207fd2549fce9b0ee99"
+source = "git+https://github.com/SueHeir/grass.git?branch=main#b804e7203a0ecb09d3aa5f1503647ff57da291c1"
 dependencies = [
  "grass_derive",
 ]
