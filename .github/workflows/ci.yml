@@ -9,6 +9,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+  BENCH_PYTHON: python3
 
 jobs:
   test:
@@ -37,6 +38,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: dev_soil_sph -> target
+
+      - name: Install validation plotting dependency
+        run: python3 -m pip install --user matplotlib
 
       - name: Build workspace
         working-directory: dev_soil_sph
