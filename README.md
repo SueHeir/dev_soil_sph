@@ -11,6 +11,18 @@ separation criterion, and a Dunatunga-Kamrin-style elasto-viscoplastic stress
 update with a Jop/GDR MiDi μ(I) Drucker-Prager flow law. It is a sibling physics
 tier to DIRT and dev_soil_peri, not a DEM solver.
 
+## From an SPH App to a coupled participant
+
+SOIL defines and stores the particle data model; SPH plugins in this repo own
+the continuum operators and constitutive state. GRASS holds those resources in
+the App and schedules the systems, but does not define particles or SPH fields.
+A cross-substrate coupling therefore lives outside both solvers. The runnable
+consumer is
+[`dev_couple_sph_cfd`](https://github.com/SueHeir/dev_couple_sph_cfd): its
+[`seam.rs`](https://github.com/SueHeir/dev_couple_sph_cfd/blob/main/crates/sph_cfd/src/seam.rs)
+reads and writes solver resources from the parent between child ticks. It does
+not place cross-App access inside the SPH child scheduler.
+
 Start here:
 
 | Document | Purpose |
