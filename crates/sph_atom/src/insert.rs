@@ -8,7 +8,7 @@
 use grass_app::prelude::*;
 use grass_scheduler::prelude::*;
 
-use soil_core::{Atom, AtomDataRegistry, Domain, ScheduleSetupSet};
+use soil_core::{Atom, AtomDataRegistry, Domain, ParticleStore, ScheduleSetupSet};
 
 use sph_constitutive::pressure;
 
@@ -44,12 +44,13 @@ fn owns_position(domain: &Domain, pos: &[f64; 3]) -> bool {
     (0..3).all(|d| pos[d] >= domain.sub_domain_low[d] && pos[d] < domain.sub_domain_high[d])
 }
 
-/// Append one SPH particle to the shared `Atom` arrays and the `SphAtom` column,
-/// keeping every column length-synchronized.
+/// Append one SPH particle: `ParticleStore` adds an aligned default row to the
+/// core `Atom` and to every registered extension (including `SphAtom`), then the
+/// new row is filled in place.
 #[allow(clippy::too_many_arguments)]
 fn insert_particle(
     atom: &mut Atom,
-    sph: &mut SphAtom,
+    registry: &AtomDataRegistry,
     pos: [f64; 3],
     vel: [f64; 3],
     mass: f64,
@@ -62,34 +63,42 @@ fn insert_particle(
     mat_idx: u32,
     tag: u32,
 ) {
-    atom.natoms += 1;
-    atom.nlocal += 1;
-    atom.tag.push(tag);
-    atom.origin_index.push(0);
+    let global_natoms = atom
+        .natoms()
+        .checked_add(1)
+        .expect("global particle count overflow during SPH insertion");
+    ParticleStore::new(atom, registry)
+        .push_default_local(global_natoms)
+        .expect("registered SPH rows must accept transactional insertion");
+    let i = atom.len() - 1;
+
+    atom.tag[i] = tag;
+    atom.origin_index[i] = 0;
     // Neighbor pair cutoff is (r_i + r_j)·skin; with uniform h this gives the
     // kernel support 2h when cutoff_radius = h.
-    atom.cutoff_radius.push(h);
-    atom.image.push([0, 0, 0]);
-    atom.is_ghost.push(false);
-    atom.pos.push(pos);
-    atom.vel.push(vel);
-    atom.force.push([0.0; 3]);
-    atom.mass.push(mass);
-    atom.inv_mass.push(1.0 / mass);
-    atom.atom_type.push(mat_idx);
+    atom.cutoff_radius[i] = h;
+    atom.image[i] = [0, 0, 0];
+    atom.is_ghost[i] = false;
+    atom.pos[i] = pos;
+    atom.vel[i] = vel;
+    atom.force[i] = [0.0; 3];
+    atom.mass[i] = mass;
+    atom.inv_mass[i] = 1.0 / mass;
+    atom.atom_type[i] = mat_idx;
 
-    sph.h.push(h);
-    sph.density.push(density);
-    sph.pressure.push(pressure0);
-    sph.dev_stress.push([0.0; 6]);
-    sph.dev_stress_elastic.push([0.0; 6]);
-    sph.temperature.push(temperature0);
-    sph.velgrad.push([0.0; 9]);
-    sph.drho_dt.push(0.0);
-    sph.lap_t.push(0.0);
-    sph.particle_mass.push(mass);
-    sph.is_boundary.push(is_boundary);
-    sph.boundary_vel.push(boundary_vel);
+    let mut sph = registry.expect_mut::<SphAtom>("sph_insert_atoms");
+    sph.h[i] = h;
+    sph.density[i] = density;
+    sph.pressure[i] = pressure0;
+    sph.dev_stress[i] = [0.0; 6];
+    sph.dev_stress_elastic[i] = [0.0; 6];
+    sph.temperature[i] = temperature0;
+    sph.velgrad[i] = [0.0; 9];
+    sph.drho_dt[i] = 0.0;
+    sph.lap_t[i] = 0.0;
+    sph.particle_mass[i] = mass;
+    sph.is_boundary[i] = is_boundary;
+    sph.boundary_vel[i] = boundary_vel;
 }
 
 /// Setup system: fill each `[[sph.insert]]` block with a lattice of particles.
@@ -104,8 +113,7 @@ pub fn sph_insert_atoms(
         Some(v) if !v.is_empty() => v,
         _ => return,
     };
-    let mut sph = registry.expect_mut::<SphAtom>("sph_insert_atoms");
-    let mut tag = atom.natoms as u32;
+    let mut tag = atom.natoms() as u32;
 
     for ins in inserts {
         let mat_idx = table.index_of(&ins.material).unwrap_or_else(|| {
@@ -136,7 +144,7 @@ pub fn sph_insert_atoms(
                     if owns_position(&domain, &pos) {
                         tag += 1;
                         insert_particle(
-                            &mut atom, &mut sph, pos, vel, mass, rho0, p0, t0, h, is_boundary,
+                            &mut atom, &registry, pos, vel, mass, rho0, p0, t0, h, is_boundary,
                             bvel, mat_idx as u32, tag,
                         );
                     }
@@ -145,7 +153,7 @@ pub fn sph_insert_atoms(
         }
     }
 
-    println!("dev_soil_sph: inserted {} local particles", atom.nlocal);
+    println!("dev_soil_sph: inserted {} local particles", atom.nlocal());
 }
 
 #[cfg(test)]

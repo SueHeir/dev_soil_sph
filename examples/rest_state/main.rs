@@ -23,7 +23,7 @@ fn main() {
         .get_resource_ref::<AtomDataRegistry>()
         .expect("AtomDataRegistry resource");
     let sph = registry.expect::<SphAtom>("rest_state post-check");
-    let n = atoms.nlocal as usize;
+    let n = atoms.nlocal() as usize;
 
     let mut max_speed = 0.0f64;
     for i in 0..n {

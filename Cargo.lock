@@ -43,8 +43,8 @@ dependencies = [
 
 [[package]]
 name = "grass_app"
-version = "0.1.0"
-source = "git+https://github.com/SueHeir/grass.git?branch=main#b804e7203a0ecb09d3aa5f1503647ff57da291c1"
+version = "0.1.1"
+source = "git+https://github.com/SueHeir/grass.git?branch=main#becbc61ec714c1923986815d22b2779a46a9507f"
 dependencies = [
  "downcast-rs",
  "grass_scheduler",
@@ -52,8 +52,8 @@ dependencies = [
 
 [[package]]
 name = "grass_derive"
-version = "0.1.0"
-source = "git+https://github.com/SueHeir/grass.git?branch=main#b804e7203a0ecb09d3aa5f1503647ff57da291c1"
+version = "0.1.1"
+source = "git+https://github.com/SueHeir/grass.git?branch=main#becbc61ec714c1923986815d22b2779a46a9507f"
 dependencies = [
  "heck",
  "proc-macro2",
@@ -63,8 +63,8 @@ dependencies = [
 
 [[package]]
 name = "grass_io"
-version = "0.1.0"
-source = "git+https://github.com/SueHeir/grass.git?branch=main#b804e7203a0ecb09d3aa5f1503647ff57da291c1"
+version = "0.1.1"
+source = "git+https://github.com/SueHeir/grass.git?branch=main#becbc61ec714c1923986815d22b2779a46a9507f"
 dependencies = [
  "grass_app",
  "grass_derive",
@@ -76,16 +76,16 @@ dependencies = [
 
 [[package]]
 name = "grass_mpi"
-version = "0.1.0"
-source = "git+https://github.com/SueHeir/grass.git?branch=main#b804e7203a0ecb09d3aa5f1503647ff57da291c1"
+version = "0.1.1"
+source = "git+https://github.com/SueHeir/grass.git?branch=main#becbc61ec714c1923986815d22b2779a46a9507f"
 dependencies = [
  "serde",
 ]
 
 [[package]]
 name = "grass_multi"
-version = "0.1.0"
-source = "git+https://github.com/SueHeir/grass.git?branch=main#b804e7203a0ecb09d3aa5f1503647ff57da291c1"
+version = "0.1.1"
+source = "git+https://github.com/SueHeir/grass.git?branch=main#becbc61ec714c1923986815d22b2779a46a9507f"
 dependencies = [
  "grass_app",
  "grass_derive",
@@ -96,8 +96,8 @@ dependencies = [
 
 [[package]]
 name = "grass_scheduler"
-version = "0.1.0"
-source = "git+https://github.com/SueHeir/grass.git?branch=main#b804e7203a0ecb09d3aa5f1503647ff57da291c1"
+version = "0.1.1"
+source = "git+https://github.com/SueHeir/grass.git?branch=main#becbc61ec714c1923986815d22b2779a46a9507f"
 dependencies = [
  "grass_derive",
 ]
@@ -259,7 +259,7 @@ dependencies = [
 [[package]]
 name = "soil_core"
 version = "0.1.3"
-source = "git+https://github.com/SueHeir/soil.git?branch=main#107fe7a39032f2bea3b1e02487b939a6c3c6bceb"
+source = "git+https://github.com/SueHeir/soil.git?branch=main#3c274b6802428a50611eb1b6e366b6b21088bfb2"
 dependencies = [
  "grass_app",
  "grass_derive",
@@ -274,7 +274,7 @@ dependencies = [
 [[package]]
 name = "soil_deform"
 version = "0.1.3"
-source = "git+https://github.com/SueHeir/soil.git?branch=main#107fe7a39032f2bea3b1e02487b939a6c3c6bceb"
+source = "git+https://github.com/SueHeir/soil.git?branch=main#3c274b6802428a50611eb1b6e366b6b21088bfb2"
 dependencies = [
  "grass_app",
  "grass_scheduler",
@@ -286,7 +286,7 @@ dependencies = [
 [[package]]
 name = "soil_derive"
 version = "0.1.3"
-source = "git+https://github.com/SueHeir/soil.git?branch=main#107fe7a39032f2bea3b1e02487b939a6c3c6bceb"
+source = "git+https://github.com/SueHeir/soil.git?branch=main#3c274b6802428a50611eb1b6e366b6b21088bfb2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -296,7 +296,7 @@ dependencies = [
 [[package]]
 name = "soil_print"
 version = "0.1.3"
-source = "git+https://github.com/SueHeir/soil.git?branch=main#107fe7a39032f2bea3b1e02487b939a6c3c6bceb"
+source = "git+https://github.com/SueHeir/soil.git?branch=main#3c274b6802428a50611eb1b6e366b6b21088bfb2"
 dependencies = [
  "bincode",
  "grass_app",
@@ -309,7 +309,7 @@ dependencies = [
 [[package]]
 name = "soil_verlet"
 version = "0.1.3"
-source = "git+https://github.com/SueHeir/soil.git?branch=main#107fe7a39032f2bea3b1e02487b939a6c3c6bceb"
+source = "git+https://github.com/SueHeir/soil.git?branch=main#3c274b6802428a50611eb1b6e366b6b21088bfb2"
 dependencies = [
  "grass_app",
  "grass_scheduler",

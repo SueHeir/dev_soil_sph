@@ -77,7 +77,7 @@ pub fn sph_density_velgrad(atoms: Res<Atom>, neighbor: Res<Neighbor>, registry: 
         "dev_soil_sph uses a gather formulation; set [neighbor] newton = false"
     );
     let mut sph = registry.expect_mut::<SphAtom>("sph_density_velgrad");
-    let nlocal = atoms.nlocal as usize;
+    let nlocal = atoms.nlocal() as usize;
 
     for (i, j) in neighbor.pairs(nlocal) {
         let dx = [
@@ -115,7 +115,7 @@ pub fn sph_density_velgrad(atoms: Res<Atom>, neighbor: Res<Neighbor>, registry: 
 pub fn sph_integrate_density(atoms: Res<Atom>, registry: Res<AtomDataRegistry>) {
     let mut sph = registry.expect_mut::<SphAtom>("sph_integrate_density");
     let dt = atoms.dt;
-    for i in 0..atoms.nlocal as usize {
+    for i in 0..atoms.nlocal() as usize {
         sph.density[i] += sph.drho_dt[i] * dt;
     }
 }
@@ -129,7 +129,7 @@ pub fn sph_integrate_density(atoms: Res<Atom>, registry: Res<AtomDataRegistry>) 
 /// owner's material (base `atom_type` isn't forwarded — single-material v0).
 pub fn sph_conduction(atoms: Res<Atom>, neighbor: Res<Neighbor>, registry: Res<AtomDataRegistry>, table: Res<SphMaterialTable>) {
     let mut sph = registry.expect_mut::<SphAtom>("sph_conduction");
-    let nlocal = atoms.nlocal as usize;
+    let nlocal = atoms.nlocal() as usize;
     for (i, j) in neighbor.pairs(nlocal) {
         let ti = sph.temperature[i];
         let tj = sph.temperature[j];
@@ -170,7 +170,7 @@ pub fn sph_temperature_update(
 ) {
     let mut sph = registry.expect_mut::<SphAtom>("sph_temperature_update");
     let dt = atoms.dt;
-    for i in 0..atoms.nlocal as usize {
+    for i in 0..atoms.nlocal() as usize {
         let mat = &table.params[atoms.atom_type[i] as usize];
         let rho = sph.density[i];
         let t = sph.temperature[i];
@@ -193,7 +193,7 @@ pub fn sph_constitutive_update(
 ) {
     let mut sph = registry.expect_mut::<SphAtom>("sph_constitutive_update");
     let dt = atoms.dt;
-    for i in 0..atoms.nlocal as usize {
+    for i in 0..atoms.nlocal() as usize {
         let mat = &table.params[atoms.atom_type[i] as usize];
         let s_n = sph.dev_stress_elastic[i];
         let l = sph.velgrad[i];
@@ -224,7 +224,7 @@ pub fn sph_momentum(
     table: Res<SphMaterialTable>,
 ) {
     let sph = registry.expect::<SphAtom>("sph_momentum");
-    let nlocal = atoms.nlocal as usize;
+    let nlocal = atoms.nlocal() as usize;
 
     for (i, j) in neighbor.pairs(nlocal) {
         let dx = [
@@ -306,7 +306,7 @@ pub fn sph_gravity(
 ) {
     let sph = registry.expect::<SphAtom>("sph_gravity");
     let g = gravity.g;
-    for i in 0..atoms.nlocal as usize {
+    for i in 0..atoms.nlocal() as usize {
         // Skip boundary particles (floor/footpad are rigid; their weight is held
         // by the structure, not the bed) so the plate reaction is pure bed force.
         if sph.is_boundary[i] > 0.5 {
@@ -364,7 +364,7 @@ pub fn sph_freeze_boundary(
     let mut fsum = [0.0f64; 3];
     let mut zsum = 0.0f64;
     let mut npl = 0usize;
-    for i in 0..atoms.nlocal as usize {
+    for i in 0..atoms.nlocal() as usize {
         if sph.is_boundary[i] <= 0.5 {
             continue;
         }

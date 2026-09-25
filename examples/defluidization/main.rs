@@ -30,16 +30,16 @@ fn main() {
     {
         let dump = app.get_resource_ref::<DumpRegistry>().expect("DumpRegistry");
         dump.register_scalar("density", |a, r| {
-            r.expect::<SphAtom>("d").density[..a.nlocal as usize].to_vec()
+            r.expect::<SphAtom>("d").density[..a.nlocal() as usize].to_vec()
         });
         dump.register_scalar("temperature", |a, r| {
-            r.expect::<SphAtom>("d").temperature[..a.nlocal as usize].to_vec()
+            r.expect::<SphAtom>("d").temperature[..a.nlocal() as usize].to_vec()
         });
         dump.register_scalar("pressure", |a, r| {
-            r.expect::<SphAtom>("d").pressure[..a.nlocal as usize].to_vec()
+            r.expect::<SphAtom>("d").pressure[..a.nlocal() as usize].to_vec()
         });
         dump.register_scalar("is_boundary", |a, r| {
-            r.expect::<SphAtom>("d").is_boundary[..a.nlocal as usize].to_vec()
+            r.expect::<SphAtom>("d").is_boundary[..a.nlocal() as usize].to_vec()
         });
     }
 
@@ -48,7 +48,7 @@ fn main() {
     let atoms = app.get_resource_ref::<Atom>().expect("Atom");
     let registry = app.get_resource_ref::<AtomDataRegistry>().expect("registry");
     let sph = registry.expect::<SphAtom>("defluidization");
-    let n = atoms.nlocal as usize;
+    let n = atoms.nlocal() as usize;
 
     let mut sum_t = 0.0;
     let mut sum_rho = 0.0;

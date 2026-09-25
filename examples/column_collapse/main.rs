@@ -127,26 +127,26 @@ fn main() {
             .get_resource_ref::<DumpRegistry>()
             .expect("DumpRegistry (PrintPlugin)");
         dump.register_scalar("density", |a, r| {
-            r.expect::<SphAtom>("dump").density[..a.nlocal as usize].to_vec()
+            r.expect::<SphAtom>("dump").density[..a.nlocal() as usize].to_vec()
         });
         dump.register_scalar("pressure", |a, r| {
-            r.expect::<SphAtom>("dump").pressure[..a.nlocal as usize].to_vec()
+            r.expect::<SphAtom>("dump").pressure[..a.nlocal() as usize].to_vec()
         });
         dump.register_scalar("temperature", |a, r| {
-            r.expect::<SphAtom>("dump").temperature[..a.nlocal as usize].to_vec()
+            r.expect::<SphAtom>("dump").temperature[..a.nlocal() as usize].to_vec()
         });
         dump.register_scalar("is_boundary", |a, r| {
-            r.expect::<SphAtom>("dump").is_boundary[..a.nlocal as usize].to_vec()
+            r.expect::<SphAtom>("dump").is_boundary[..a.nlocal() as usize].to_vec()
         });
         dump.register_scalar("speed", |a, _r| {
-            (0..a.nlocal as usize)
+            (0..a.nlocal() as usize)
                 .map(|i| {
                     let v = a.vel[i];
                     (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]).sqrt()
                 })
                 .collect()
         });
-        dump.register_vector("velocity", |a, _r| a.vel[..a.nlocal as usize].to_vec());
+        dump.register_vector("velocity", |a, _r| a.vel[..a.nlocal() as usize].to_vec());
     }
 
     app.start();
@@ -157,7 +157,7 @@ fn main() {
         .get_resource_ref::<AtomDataRegistry>()
         .expect("registry");
     let sph = registry.expect::<SphAtom>("collapse post-check");
-    let n = atoms.nlocal as usize;
+    let n = atoms.nlocal() as usize;
 
     // Deposit profile on a RESOLUTION-INDEPENDENT grid: fixed bin width over the
     // declared domain span, surface height (max z) per bin.
