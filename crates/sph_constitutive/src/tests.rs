@@ -534,3 +534,23 @@ fn kt_conductivity_scales_with_sqrt_t_and_is_positive() {
     assert!(k1 > 0.0);
     assert!((k4 / k1 - 2.0).abs() < 1e-9, "κ ∝ √T"); // 4× T → 2× κ
 }
+
+/// Dilute, elastic limit (Φ → 0, e = 1, so g₀ → 1): both kinetic-theory transport
+/// coefficients must reduce to the Chapman–Enskog hard-sphere values,
+/// `μ_dil = (5/96) ρ_s d √(πT)` and `κ_dil = (75/384) ρ_s d √(πT)`, independent of Φ.
+#[test]
+fn kt_transport_reduces_to_chapman_enskog_in_the_dilute_limit() {
+    let mut p = MaterialParams::glass_beads_v0();
+    p.restitution = 1.0;
+    let t = 0.02;
+    let scale = p.rho_s * p.d * (std::f64::consts::PI * t).sqrt();
+    let mu_dil = 5.0 / 96.0 * scale;
+    let k_dil = 75.0 / 384.0 * scale;
+    for phi in [1.0e-5, 1.0e-4] {
+        let rho = phi * p.rho_s;
+        let eta = kt_shear_viscosity(rho, t, &p);
+        let kappa = kt_conductivity(rho, t, &p);
+        assert!((eta / mu_dil - 1.0).abs() < 1e-3, "Φ={phi}: η/μ_dil = {}", eta / mu_dil);
+        assert!((kappa / k_dil - 1.0).abs() < 1e-3, "Φ={phi}: κ/κ_dil = {}", kappa / k_dil);
+    }
+}

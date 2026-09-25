@@ -431,9 +431,12 @@ pub fn kt_cooling_rate(rho: f64, t: f64, params: &MaterialParams) -> f64 {
 }
 
 /// Kinetic-theory shear viscosity `η_KT(ρ,T)` [Pa·s] (collisional + kinetic,
-/// Lun et al. 1984 / Gidaspow). Scales as `ρ_s d √T`; the collisional part `∝ Φ²
-/// g₀` dominates in the dense regime, the kinetic part `∝ 1/(Φ g₀)` in the dilute
-/// limit. Zero at `T = 0`. The KT *deviatoric* stress is `τ_KT = 2 η_KT D'`.
+/// Gidaspow 1994 bulk form, after Lun et al. 1984). Scales as `ρ_s d √T`; the
+/// collisional part `∝ Φ² g₀` dominates in the dense regime, the kinetic part
+/// `2 μ_dil / ((1+e) g₀) · [1 + ⅘ g₀ Φ (1+e)]²` with `μ_dil = (5/96) ρ_s d √(πT)`
+/// in the dilute limit. Both terms are bulk (mixture) viscosities, so the dilute
+/// limit is independent of `Φ` (Chapman–Enskog). Zero at `T = 0`. The KT
+/// *deviatoric* stress is `τ_KT = 2 η_KT D'`.
 pub fn kt_shear_viscosity(rho: f64, t: f64, params: &MaterialParams) -> f64 {
     if t <= 0.0 {
         return 0.0;
@@ -448,13 +451,14 @@ pub fn kt_shear_viscosity(rho: f64, t: f64, params: &MaterialParams) -> f64 {
     let eta_coll = 0.8 * phi * phi * rs * d * g0 * (1.0 + e) * sqrt_t / sqrt_pi;
     // Kinetic (dilute) part.
     let bracket = 1.0 + 0.8 * g0 * phi * (1.0 + e);
-    let eta_kin =
-        (10.0 * rs * d * sqrt_pi * sqrt_t) / (96.0 * phi * (1.0 + e) * g0) * bracket * bracket;
+    let eta_kin = (10.0 * rs * d * sqrt_pi * sqrt_t) / (96.0 * (1.0 + e) * g0) * bracket * bracket;
     eta_coll + eta_kin
 }
 
 /// Kinetic-theory granular conductivity `κ(ρ,T)` [Pa·s] for the fluctuation-energy
-/// flux `q = −κ ∇T` (Lun et al. / Gidaspow, collisional + kinetic). Same
+/// flux `q = −κ ∇T` (Gidaspow 1994 bulk form, after Lun et al. 1984; collisional +
+/// kinetic, the latter `2 κ_dil / ((1+e) g₀) · [1 + 6/5 g₀ Φ (1+e)]²` with
+/// `κ_dil = (75/384) ρ_s d √(πT)`, so the dilute limit is `Φ`-independent). Same
 /// dimensional structure as `η_KT` (`∝ ρ_s d √T`). Zero at `T = 0`. The energy
 /// balance's conduction term is `∇·(κ∇T)`; its `dT/dt` contribution is
 /// `(2/3ρ)∇·(κ∇T)`. The *value* is the KT closure (recalibrate the dense regime
@@ -473,8 +477,8 @@ pub fn kt_conductivity(rho: f64, t: f64, params: &MaterialParams) -> f64 {
     let k_coll = 2.0 * phi * phi * rs * d * g0 * (1.0 + e) * sqrt_t / sqrt_pi;
     // Kinetic (dilute) part.
     let bracket = 1.0 + 1.2 * g0 * phi * (1.0 + e); // 6/5 = 1.2
-    let k_kin =
-        (75.0 * rs * d * sqrt_pi * sqrt_t) / (384.0 * (1.0 + e) * g0) * bracket * bracket;
+    // 2 κ_dil / ((1+e) g₀) with κ_dil = (75/384) ρ_s d √(πT).
+    let k_kin = (150.0 * rs * d * sqrt_pi * sqrt_t) / (384.0 * (1.0 + e) * g0) * bracket * bracket;
     k_coll + k_kin
 }
 
