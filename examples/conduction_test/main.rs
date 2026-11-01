@@ -25,7 +25,7 @@ const AMP: f64 = 0.1;
 fn init_sinusoid(atoms: Res<Atom>, registry: Res<AtomDataRegistry>) {
     let mut sph = registry.expect_mut::<SphAtom>("init_sinusoid");
     let k = 2.0 * PI / L_X;
-    for i in 0..atoms.nlocal as usize {
+    for i in 0..atoms.nlocal() as usize {
         sph.temperature[i] = T0 * (1.0 + AMP * (k * atoms.pos[i][0]).sin());
     }
 }
@@ -40,7 +40,7 @@ fn main() {
     let registry = app.get_resource_ref::<AtomDataRegistry>().expect("registry");
     let sph = registry.expect::<SphAtom>("conduction post-check");
     let table = app.get_resource_ref::<SphMaterialTable>().expect("materials");
-    let n = atoms.nlocal as usize;
+    let n = atoms.nlocal() as usize;
     let mat = &table.params[0];
 
     // Least-squares slope of lap_t vs (T − T0), through the origin.

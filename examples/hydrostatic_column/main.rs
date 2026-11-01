@@ -24,7 +24,7 @@ fn main() {
         .get_resource_ref::<AtomDataRegistry>()
         .expect("registry");
     let sph = registry.expect::<SphAtom>("hydrostatic post-check");
-    let n = atoms.nlocal as usize;
+    let n = atoms.nlocal() as usize;
 
     const G: f64 = 9.81;
     const RHO_REF: f64 = 1500.0;

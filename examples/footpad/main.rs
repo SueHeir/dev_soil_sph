@@ -49,13 +49,13 @@ fn main() {
             .get_resource_ref::<DumpRegistry>()
             .expect("DumpRegistry");
         dump.register_scalar("pressure", |a, r| {
-            r.expect::<SphAtom>("d").pressure[..a.nlocal as usize].to_vec()
+            r.expect::<SphAtom>("d").pressure[..a.nlocal() as usize].to_vec()
         });
         dump.register_scalar("is_boundary", |a, r| {
-            r.expect::<SphAtom>("d").is_boundary[..a.nlocal as usize].to_vec()
+            r.expect::<SphAtom>("d").is_boundary[..a.nlocal() as usize].to_vec()
         });
         dump.register_scalar("speed", |a, _r| {
-            (0..a.nlocal as usize)
+            (0..a.nlocal() as usize)
                 .map(|i| {
                     let v = a.vel[i];
                     (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]).sqrt()
