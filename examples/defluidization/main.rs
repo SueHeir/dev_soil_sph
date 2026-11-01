@@ -25,7 +25,7 @@ fn main() {
     let mut app = App::new();
     app.add_plugins(CorePlugins)
         .add_plugins(SphDefaultPlugins)
-        .add_plugins(SphGravityPlugin);
+        .add_plugins(GravityPlugin);
 
     {
         let dump = app.get_resource_ref::<DumpRegistry>().expect("DumpRegistry");

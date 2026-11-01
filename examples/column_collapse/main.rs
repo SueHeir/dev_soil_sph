@@ -119,7 +119,7 @@ fn main() {
     let mut app = App::new();
     app.add_plugins(CorePlugins)
         .add_plugins(SphDefaultPlugins)
-        .add_plugins(SphGravityPlugin);
+        .add_plugins(GravityPlugin);
 
     // Register dev_soil_sph fields for the dump (OVITO can color by any of these).
     {

@@ -36,7 +36,7 @@ fn main() {
     let mut app = App::new();
     app.add_plugins(CorePlugins)
         .add_plugins(SphDefaultPlugins)
-        .add_plugins(SphGravityPlugin);
+        .add_plugins(GravityPlugin);
     app.add_resource(SinkageLog::default());
     // After the freeze (PostForce) has updated SphPlateForce.
     app.add_update_system(

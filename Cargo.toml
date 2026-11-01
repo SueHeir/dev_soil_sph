@@ -11,7 +11,7 @@ sph_core = { path = "crates/sph_core" }
 # Pure constitutive core — used directly by the `simple_shear_mu_i` element test,
 # which drives the return map in isolation (no App / substrate).
 sph_constitutive = { path = "crates/sph_constitutive" }
-soil_deform = { git = "https://github.com/SueHeir/soil.git", branch = "main" }
+soil_deform = { git = "https://github.com/SueHeir/soil.git", branch = "claude/project-thread-6guszj" }
 toml = "0.8.23"
 
 [[example]]

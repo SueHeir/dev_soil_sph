@@ -15,8 +15,8 @@
 //! }
 //! ```
 //!
-//! `CorePlugins` is a verbatim replica of the generic GRASS+SOIL infrastructure
-//! group (it contains no physics), so dev_soil_sph does not depend on DIRT.
+//! `CorePlugins` is SOIL's shared infrastructure group (it contains no
+//! physics), so dev_soil_sph does not depend on DIRT.
 
 // ── Sub-crate re-exports ─────────────────────────────────────────────────────
 pub use sph_atom;
@@ -30,27 +30,13 @@ pub use soil_verlet;
 use grass_app::prelude::*;
 
 /// Core simulation infrastructure (input, communication, domain decomposition,
-/// neighbor lists, groups, run loop, output). Contains no physics.
+/// neighbor lists, groups, run loop, output). Contains no physics. This is
+/// SOIL's shared [`soil_plugins::CorePlugins`], the same group DIRT and
+/// dev_soil_peri use.
 ///
 /// Velocity Verlet integration is **not** included here — `SphDefaultPlugins`
-/// adds it.
-pub struct CorePlugins;
-
-impl PluginGroup for CorePlugins {
-    fn build(self) -> PluginGroupBuilder {
-        PluginGroupBuilder::start::<Self>()
-            .add(|app: &mut App| {
-                app.set_warning_fn(soil_core::verlet_schedule_warnings);
-            })
-            .add(soil_core::InputPlugin)
-            .add(soil_core::CommunicationPlugin)
-            .add(soil_core::DomainPlugin)
-            .add(soil_core::NeighborPlugin)
-            .add(soil_core::GroupPlugin)
-            .add(soil_core::RunPlugin)
-            .add(soil_print::PrintPlugin)
-    }
-}
+/// adds it, and it also applies `[[run]] dt`.
+pub use soil_plugins::CorePlugins;
 
 /// The default dev_soil_sph SPH physics group, in registration order:
 /// - [`SphAtomPlugin`](sph_atom::SphAtomPlugin) — the `SphAtom` column + material table
@@ -84,7 +70,7 @@ pub mod prelude {
         TwoBranchStress,
     };
     pub use sph_kernel::Kernel;
-    pub use sph_physics::{SphGravity, SphGravityPlugin, SphPhysicsPlugin, SphPlateForce};
+    pub use sph_physics::{GravityConfig, GravityPlugin, SphPhysicsPlugin, SphPlateForce};
 
     // Derive macros (multi-stage runs, etc.)
     pub use grass_derive::{ScheduleSet, StageEnum};
