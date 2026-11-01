@@ -32,7 +32,7 @@ fn main() {
         .get_resource_ref::<SphMaterialTable>()
         .expect("material table");
     let run = app.get_resource_ref::<RunConfig>().expect("run config");
-    let n = atoms.nlocal as usize;
+    let n = atoms.nlocal() as usize;
 
     let mat = &table.params[0];
     let stage = run.current_stage(0);

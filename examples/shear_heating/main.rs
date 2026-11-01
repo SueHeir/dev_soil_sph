@@ -29,7 +29,7 @@ fn main() {
     let registry = app.get_resource_ref::<AtomDataRegistry>().expect("registry");
     let sph = registry.expect::<SphAtom>("shear post-check");
     let table = app.get_resource_ref::<SphMaterialTable>().expect("materials");
-    let n = atoms.nlocal as usize;
+    let n = atoms.nlocal() as usize;
     let mat = &table.params[0];
 
     // Measured: mean density, mean T, mean velocity gradient L_xy (the imposed shear).
