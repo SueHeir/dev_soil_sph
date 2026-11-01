@@ -15,7 +15,7 @@ fn main() {
     let mut app = App::new();
     app.add_plugins(CorePlugins)
         .add_plugins(SphDefaultPlugins)
-        .add_plugins(SphGravityPlugin);
+        .add_plugins(GravityPlugin);
     app.start();
 
     // ── Analyze the settled fluid column ─────────────────────────────────────

@@ -30,11 +30,7 @@
 use grass_app::prelude::*;
 use grass_scheduler::prelude::*;
 
-use serde::Deserialize;
-use soil_core::{
-    forward_comm_borders, Atom, AtomDataRegistry, Config, Neighbor, ParticleSimScheduleSet,
-    RunConfig, ScheduleSetupSet,
-};
+use soil_core::{forward_comm_borders, Atom, AtomDataRegistry, Neighbor, ParticleSimScheduleSet};
 
 use sph_atom::{SphAtom, SphAtomPlugin, SphMaterialTable};
 use sph_constitutive::{
@@ -79,33 +75,38 @@ pub fn sph_density_velgrad(atoms: Res<Atom>, neighbor: Res<Neighbor>, registry: 
     let mut sph = registry.expect_mut::<SphAtom>("sph_density_velgrad");
     let nlocal = atoms.nlocal() as usize;
 
-    for (i, j) in neighbor.pairs(nlocal) {
-        let dx = [
-            atoms.pos[i][0] - atoms.pos[j][0],
-            atoms.pos[i][1] - atoms.pos[j][1],
-            atoms.pos[i][2] - atoms.pos[j][2],
-        ];
-        let gradw = KERNEL.grad_w(dx, sph.h[i]);
-        if gradw == [0.0, 0.0, 0.0] {
-            continue;
-        }
-        let vol_j = sph.particle_mass[j] / sph.density[j];
-        let mj = sph.particle_mass[j];
-        // v_j − v_i
-        let dvji = [
-            atoms.vel[j][0] - atoms.vel[i][0],
-            atoms.vel[j][1] - atoms.vel[i][1],
-            atoms.vel[j][2] - atoms.vel[i][2],
-        ];
-        // L_i += vol_j (v_j − v_i) ⊗ ∇W   (row-major a*3+b)
-        for a in 0..3 {
-            for b in 0..3 {
-                sph.velgrad[i][a * 3 + b] += vol_j * dvji[a] * gradw[b];
+    // Row-wise gather: everything that depends only on `i` is read once, and the
+    // accumulators are written once per particle rather than once per pair.
+    for i in 0..nlocal {
+        let xi = atoms.pos[i];
+        let vi = atoms.vel[i];
+        let hi = sph.h[i];
+        let mut l = sph.velgrad[i];
+        let mut drho = sph.drho_dt[i];
+        for &j in neighbor.neighbors_of(i) {
+            let j = j as usize;
+            let dx = [xi[0] - atoms.pos[j][0], xi[1] - atoms.pos[j][1], xi[2] - atoms.pos[j][2]];
+            let gradw = KERNEL.grad_w(dx, hi);
+            if gradw == [0.0, 0.0, 0.0] {
+                continue;
             }
+            let mj = sph.particle_mass[j];
+            let vol_j = mj / sph.density[j];
+            // v_j − v_i
+            let vj = atoms.vel[j];
+            let dvji = [vj[0] - vi[0], vj[1] - vi[1], vj[2] - vi[2]];
+            // L_i += vol_j (v_j − v_i) ⊗ ∇W   (row-major a*3+b)
+            for a in 0..3 {
+                for b in 0..3 {
+                    l[a * 3 + b] += vol_j * dvji[a] * gradw[b];
+                }
+            }
+            // dρ/dt_i += m_j (v_i − v_j)·∇W = −m_j (v_j − v_i)·∇W
+            let dot = dvji[0] * gradw[0] + dvji[1] * gradw[1] + dvji[2] * gradw[2];
+            drho -= mj * dot;
         }
-        // dρ/dt_i += m_j (v_i − v_j)·∇W = −m_j (v_j − v_i)·∇W
-        let dot = dvji[0] * gradw[0] + dvji[1] * gradw[1] + dvji[2] * gradw[2];
-        sph.drho_dt[i] -= mj * dot;
+        sph.velgrad[i] = l;
+        sph.drho_dt[i] = drho;
     }
 }
 
@@ -226,54 +227,60 @@ pub fn sph_momentum(
     let sph = registry.expect::<SphAtom>("sph_momentum");
     let nlocal = atoms.nlocal() as usize;
 
-    for (i, j) in neighbor.pairs(nlocal) {
-        let dx = [
-            atoms.pos[i][0] - atoms.pos[j][0],
-            atoms.pos[i][1] - atoms.pos[j][1],
-            atoms.pos[i][2] - atoms.pos[j][2],
-        ];
+    // Row-wise gather: σᵢ/ρᵢ², the sound speed and the other `i`-only terms are
+    // hoisted out of the neighbor loop; the force is written once per particle.
+    for i in 0..nlocal {
+        let xi = atoms.pos[i];
+        let vi = atoms.vel[i];
         let h = sph.h[i];
-        let gradw = KERNEL.grad_w(dx, h);
-        if gradw == [0.0, 0.0, 0.0] {
-            continue;
-        }
         let mi = sph.particle_mass[i];
-        let mj = sph.particle_mass[j];
         let rho_i = sph.density[i];
-        let rho_j = sph.density[j];
-        let rhoi2 = rho_i * rho_i;
-        let rhoj2 = rho_j * rho_j;
         let sig_i = sigma(&sph, i);
-        let sig_j = sigma(&sph, j);
-        let mut term: [f64; 6] = std::array::from_fn(|k| sig_i[k] / rhoi2 + sig_j[k] / rhoj2);
+        let rhoi2 = rho_i * rho_i;
+        let s_i: [f64; 6] = std::array::from_fn(|k| sig_i[k] / rhoi2);
+        // Owner's material sound speed. `i` is always local; base `atom_type` is
+        // NOT forward-communicated, so `atom_type[j]` is invalid for ghost `j`.
+        // Single-material v0 → c_i == c_j anyway.
+        let c_bar = table.params[atoms.atom_type[i] as usize].sound_speed();
+        let mut f = [0.0f64; 3];
 
-        // Monaghan artificial viscosity Π_ij: active only for approaching pairs
-        // (v_ij·r_ij < 0). Adds an isotropic dissipative pressure (−Π onto the
-        // stress-tensor diagonal, since σ = −p I + s here uses compression-positive p).
-        let vij = [
-            atoms.vel[i][0] - atoms.vel[j][0],
-            atoms.vel[i][1] - atoms.vel[j][1],
-            atoms.vel[i][2] - atoms.vel[j][2],
-        ];
-        let vdotr = vij[0] * dx[0] + vij[1] * dx[1] + vij[2] * dx[2];
-        if vdotr < 0.0 {
-            let r2 = dx[0] * dx[0] + dx[1] * dx[1] + dx[2] * dx[2];
-            let mu = h * vdotr / (r2 + 0.01 * h * h);
-            // Use the owner's material sound speed. `i` is always local; base
-            // `atom_type` is NOT forward-communicated, so `atom_type[j]` is invalid
-            // for ghost `j`. Single-material v0 → c_i == c_j anyway.
-            let c_bar = table.params[atoms.atom_type[i] as usize].sound_speed();
-            let rho_bar = 0.5 * (rho_i + rho_j);
-            let pi_ij = (-AV_ALPHA * c_bar * mu + AV_BETA * mu * mu) / rho_bar;
-            // a_i += Σ_j m_j (−Π_ij I)·∇W  ⇒  subtract Π_ij from the diagonal.
-            term[0] -= pi_ij;
-            term[1] -= pi_ij;
-            term[2] -= pi_ij;
+        for &j in neighbor.neighbors_of(i) {
+            let j = j as usize;
+            let dx = [xi[0] - atoms.pos[j][0], xi[1] - atoms.pos[j][1], xi[2] - atoms.pos[j][2]];
+            let gradw = KERNEL.grad_w(dx, h);
+            if gradw == [0.0, 0.0, 0.0] {
+                continue;
+            }
+            let mj = sph.particle_mass[j];
+            let rho_j = sph.density[j];
+            let rhoj2 = rho_j * rho_j;
+            let sig_j = sigma(&sph, j);
+            let mut term: [f64; 6] = std::array::from_fn(|k| s_i[k] + sig_j[k] / rhoj2);
+
+            // Monaghan artificial viscosity Π_ij: active only for approaching pairs
+            // (v_ij·r_ij < 0). Adds an isotropic dissipative pressure (−Π onto the
+            // stress-tensor diagonal, since σ = −p I + s here uses compression-positive p).
+            let vj = atoms.vel[j];
+            let vij = [vi[0] - vj[0], vi[1] - vj[1], vi[2] - vj[2]];
+            let vdotr = vij[0] * dx[0] + vij[1] * dx[1] + vij[2] * dx[2];
+            if vdotr < 0.0 {
+                let r2 = dx[0] * dx[0] + dx[1] * dx[1] + dx[2] * dx[2];
+                let mu = h * vdotr / (r2 + 0.01 * h * h);
+                let rho_bar = 0.5 * (rho_i + rho_j);
+                let pi_ij = (-AV_ALPHA * c_bar * mu + AV_BETA * mu * mu) / rho_bar;
+                // a_i += Σ_j m_j (−Π_ij I)·∇W  ⇒  subtract Π_ij from the diagonal.
+                term[0] -= pi_ij;
+                term[1] -= pi_ij;
+                term[2] -= pi_ij;
+            }
+
+            let tg = sym3_mat_vec(&term, &gradw);
+            for d in 0..3 {
+                f[d] += mi * mj * tg[d];
+            }
         }
-
-        let tg = sym3_mat_vec(&term, &gradw);
         for d in 0..3 {
-            atoms.force[i][d] += mi * mj * tg[d];
+            atoms.force[i][d] += f[d];
         }
     }
 }
@@ -282,59 +289,11 @@ pub fn sph_momentum(
 
 // ── Gravity (body force) ─────────────────────────────────────────────────────
 
-#[derive(Deserialize, Clone, Default)]
-#[serde(deny_unknown_fields)]
-struct GravityConfig {
-    #[serde(default)]
-    gx: f64,
-    #[serde(default)]
-    gy: f64,
-    #[serde(default)]
-    gz: f64,
-}
-
-/// The gravity acceleration vector resource.
-pub struct SphGravity {
-    pub g: [f64; 3],
-}
-
-/// Adds the gravity body force `m·g` to each particle, at the Force phase.
-pub fn sph_gravity(
-    mut atoms: ResMut<Atom>,
-    gravity: Res<SphGravity>,
-    registry: Res<AtomDataRegistry>,
-) {
-    let sph = registry.expect::<SphAtom>("sph_gravity");
-    let g = gravity.g;
-    for i in 0..atoms.nlocal() as usize {
-        // Skip boundary particles (floor/footpad are rigid; their weight is held
-        // by the structure, not the bed) so the plate reaction is pure bed force.
-        if sph.is_boundary[i] > 0.5 {
-            continue;
-        }
-        let m = sph.particle_mass[i];
-        atoms.force[i][0] += m * g[0];
-        atoms.force[i][1] += m * g[1];
-        atoms.force[i][2] += m * g[2];
-    }
-}
-
-/// Registers the gravity body force from `[gravity]` (gx, gy, gz).
-pub struct SphGravityPlugin;
-
-impl Plugin for SphGravityPlugin {
-    fn default_config(&self) -> Option<&str> {
-        Some("[gravity]\ngx = 0.0\ngy = 0.0\ngz = -9.81")
-    }
-
-    fn build(&self, app: &mut App) {
-        let cfg = Config::load::<GravityConfig>(app, "gravity");
-        app.add_resource(SphGravity {
-            g: [cfg.gx, cfg.gy, cfg.gz],
-        });
-        app.add_update_system(sph_gravity.label("sph_gravity"), ParticleSimScheduleSet::Force);
-    }
-}
+// Gravity is SOIL's shared `soil_fixes::GravityPlugin` (`[gravity]` gx/gy/gz),
+// the same plugin DIRT uses. Rigid boundary particles receive `m g` like every
+// other particle, but `sph_freeze_boundary` zeroes their force, and it removes
+// the driven set's own weight from the measured plate reaction.
+pub use soil_fixes::{GravityConfig, GravityPlugin};
 
 // ── Boundary freeze ──────────────────────────────────────────────────────────
 
@@ -359,8 +318,10 @@ pub fn sph_freeze_boundary(
     mut atoms: ResMut<Atom>,
     registry: Res<AtomDataRegistry>,
     mut plate: ResMut<SphPlateForce>,
+    gravity: Option<Res<GravityConfig>>,
 ) {
     let sph = registry.expect::<SphAtom>("sph_freeze_boundary");
+    let g = gravity.map_or([0.0; 3], |g| [g.gx, g.gy, g.gz]);
     let mut fsum = [0.0f64; 3];
     let mut zsum = 0.0f64;
     let mut npl = 0usize;
@@ -371,9 +332,11 @@ pub fn sph_freeze_boundary(
         let bv = sph.boundary_vel[i];
         let driven = bv[0] != 0.0 || bv[1] != 0.0 || bv[2] != 0.0;
         if driven {
-            // Reaction = bed force on the footpad this step (before zeroing).
+            // Reaction = bed force on the footpad this step (before zeroing),
+            // excluding the footpad's own weight added by the gravity plugin.
+            let m = sph.particle_mass[i];
             for d in 0..3 {
-                fsum[d] += atoms.force[i][d];
+                fsum[d] += atoms.force[i][d] - m * g[d];
             }
             zsum += atoms.pos[i][2];
             npl += 1;
@@ -383,16 +346,6 @@ pub fn sph_freeze_boundary(
     }
     if npl > 0 {
         *plate = SphPlateForce { force: fsum, z: zsum / npl as f64, n: npl };
-    }
-}
-
-/// Copy the `[[run]] dt` into `Atom::dt` (the Verlet integrator reads `Atom::dt`,
-/// which otherwise defaults to 1.0 — a catastrophic CFL violation). Mirrors dev_soil_peri's
-/// `set_timestep` / DIRT's `calculate_delta_time`.
-fn sph_set_timestep(mut atoms: ResMut<Atom>, run_config: Res<RunConfig>) {
-    let dt = run_config.current_stage(0).dt;
-    if dt > 0.0 {
-        atoms.dt = dt;
     }
 }
 
@@ -413,7 +366,6 @@ impl Plugin for SphPhysicsPlugin {
     }
 
     fn build(&self, app: &mut App) {
-        app.add_setup_system(sph_set_timestep, ScheduleSetupSet::PostSetup);
         app.add_resource(SphPlateForce::default());
         app.add_update_system(
             sph_density_velgrad.label("sph_density"),
